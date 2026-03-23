@@ -51,6 +51,136 @@ donor는 commit 통째로 가져오지 않는다.
 - `test-results`
 - `historical-hardening`
 
+## Current Status
+
+- Status: `in progress`
+- Current phase focus: `Donor Matrix Universe drafting`
+- Source repo currently being excavated: `Junghwan-Oh/2dex`
+- Guiding rule: commit trust is weaker than feature/function evidence in the donor source, so the matrix is being populated by code archaeology rather than commit aesthetics
+
+## Donor Matrix Universe (Current Draft)
+
+현재까지 2dex donor source 에서 확인된 universe 초안은 아래와 같다.
+
+### U1. Position Truth / Drift / Flatness Universe
+
+Primary source artifacts:
+- `hedge/DN_pair_eth_sol_nado.py`
+- `docs/websocket-position-tracking-fix.md`
+- `hedge/tests/test_websocket_positions.py`
+
+Observed donor signals:
+- WebSocket position is treated as the authoritative source
+- REST is used as verification / fallback, not primary truth
+- position-zero wait mechanism
+- drift detection between WS and REST
+- residual exposure detection
+- pre-build position verification
+- manual position reset removal as an explicit architectural rule
+
+Draft matrix direction:
+- `functional_axis`: `risk-flatness`
+- current judgment: `keep/adapt`
+- likely extraction priority: `P0`
+
+### U2. Emergency Unwind / Orphan Cleanup Universe
+
+Primary source artifacts:
+- `hedge/cleanup_orphaned_positions.py`
+- `hedge/detect_orphaned_positions.py`
+- `hedge/close_position.py`
+- `hedge/close_positions.py`
+
+Observed donor signals:
+- orphaned position cleanup
+- wrong-subaccount recovery logic
+- forced close path
+- manual recovery tooling
+
+Draft matrix direction:
+- `functional_axis`: `risk-flatness`
+- current judgment: `keep/donor-only` (to be split by feature unit)
+- likely extraction priority: `P0`
+
+### U3. Fill Truth / Order Completion Universe
+
+Primary source artifacts:
+- `FILL_MONITORING_IMPLEMENTATION.md`
+- `hedge/DN_pair_eth_sol_nado.py`
+- `hedge/exchanges/nado.py`
+
+Observed donor signals:
+- order placement is not treated as execution success
+- explicit wait-for-fill logic
+- timeout → cancel behavior
+- actual fill price / size logging
+- fill truth connected to emergency unwind decisions
+
+Draft matrix direction:
+- `functional_axis`: `execution`
+- current judgment: `keep/adapt`
+- likely extraction priority: `P2`, but some verification subfeatures may promote earlier
+
+### U4. WebSocket / Market-Data Infrastructure Universe
+
+Primary source artifacts:
+- `hedge/exchanges/nado_websocket_client.py`
+- `hedge/exchanges/nado_bbo_handler.py`
+- `hedge/exchanges/nado_bookdepth_handler.py`
+- `docs/WEBSOCKET_COMPARISON_REPORT.md`
+
+Observed donor signals:
+- connection state handling
+- reconnect logic
+- callback registry
+- message queue
+- BBO / BookDepth stream handling
+- private stream auth path
+
+Draft matrix direction:
+- `functional_axis`: `market-data`
+- current judgment: `keep/adapt`
+- likely extraction priority: `P1`
+
+### U5. Rollback / Telemetry / Observability Universe
+
+Primary source artifacts:
+- `hedge/rollback_monitor.py`
+- `FILL_MONITORING_IMPLEMENTATION.md`
+- `IMPLEMENTATION_CHECKLIST.md`
+- `PROGRESS_REPORT.md`
+- `evaluations/*`
+
+Observed donor signals:
+- rollback trigger concept
+- safety stop accounting
+- avg pnl bps thresholding
+- execution/fill logging
+- implementation evidence trail
+
+Draft matrix direction:
+- `functional_axis`: `ops-observability`
+- current judgment: `adapt`
+- likely extraction priority: `P0/P3 split`
+
+### U6. Strategy Family Universe
+
+Primary source artifacts:
+- `run_alternating_strategy.py`
+- `hedge/test_alternating.py`
+- `hedge/DN_pair_eth_sol_nado.py`
+- spread-filter documentation set
+
+Observed donor signals:
+- `alternate` is a real execution family, not just a note
+- spread filter and policy tuning artifacts exist
+- economics shaping logic exists, but should be separated from infra donors
+
+Draft matrix direction:
+- `functional_axis`: `execution` + `accounting-economics`
+- current judgment: `adapt/research-first`
+- likely extraction priority: `P3` after infra hardening
+
 ## First-Pass Donor Candidates
 
 아래는 full-history 조사 전에 이미 높은 우선순위로 봐야 하는 donor 후보군이다.
