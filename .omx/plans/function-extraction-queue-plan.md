@@ -114,6 +114,59 @@ queue는 아래 우선순위로 정렬한다.
 
 - `1DEX + subaccount`는 mainline-target이지만, 아직 feasibility lane이다
 
+## Current Status
+
+- Status: `in progress`
+- Current milestone: `Universe drafting and first bounded extraction candidate selection`
+- Current source excavation target: `Junghwan-Oh/2dex`
+
+## First Bounded Extraction Candidates (Draft)
+
+These are not yet integrated donors. They are the first candidate slices currently being prepared for extraction.
+
+### Candidate Q0-A — WS Position Truth Contract
+
+- `functional_axis`: `risk-flatness`
+- `source_family`: `nado-pair`
+- `feature_unit`: authoritative WS position state + no-manual-reset rule + zero-wait signal
+- `target_contract_slot`: `position_truth_guard`
+- expected source artifacts:
+  - `hedge/DN_pair_eth_sol_nado.py`
+  - `docs/websocket-position-tracking-fix.md`
+  - `hedge/tests/test_websocket_positions.py`
+- current reason:
+  - directly aligned with `Position Truth Before Speed`
+  - strong donor evidence exists in both code and incident documentation
+
+### Candidate Q0-B — Residual / Emergency Flatten Guard
+
+- `functional_axis`: `risk-flatness`
+- `source_family`: `nado-pair`
+- `feature_unit`: residual detection + emergency flatten / orphan cleanup path
+- `target_contract_slot`: `residual_exposure_guard`
+- expected source artifacts:
+  - `hedge/cleanup_orphaned_positions.py`
+  - `hedge/detect_orphaned_positions.py`
+  - `hedge/close_position.py`
+  - `hedge/close_positions.py`
+- current reason:
+  - directly aligned with flat-close reliability requirement
+  - likely to produce small bounded donor slices without forcing premature strategy choices
+
+### Candidate Q1-A — Fill Truth Completion Guard
+
+- `functional_axis`: `execution`
+- `source_family`: `nado-pair`
+- `feature_unit`: order placed != success, fill wait / timeout / cancel semantics
+- `target_contract_slot`: `fill_completion_guard`
+- expected source artifacts:
+  - `hedge/DN_pair_eth_sol_nado.py`
+  - `hedge/exchanges/nado.py`
+  - `FILL_MONITORING_IMPLEMENTATION.md`
+- current reason:
+  - useful execution donor with strong observability implications
+  - should follow or partially overlap with truth/flatness donor extraction
+
 ## Queue Waves
 
 ### Wave 1. Mainline Survival Pack

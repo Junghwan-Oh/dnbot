@@ -47,6 +47,36 @@
 
 즉, 사용자가 말한 **"함수 하나 추출할 때마다 테스트하고 검증하면서 통합"** 이 기본 규칙이다.
 
+## Phase Rule Before Step 1
+
+현재 donor extraction 은 아래 두 phase 로 본다.
+
+### Phase 1 — Trading Infrastructure Hardening
+우선 추출 대상:
+- execution continuity
+- order lifecycle correctness
+- flat-close reliability
+- safety / verification gate
+- WS / REST truth handling
+- emergency flatten path
+- telemetry / accounting integrity
+
+평가 원칙:
+- 이 단계의 practical baseline 은 우선 `-0.05%`
+- `-0.1%` 이하 손실 로직은 direct strategy 용도로는 폐기
+- 단, direct strategy 로는 폐기해도 execution / safety / telemetry donor 로서의 가치는 별도로 평가
+
+### Phase 2 — PnL Hardening / Optimization
+후속 추출 대상:
+- strategy quality 개선 donor
+- maker ratio 개선 donor
+- spread / slippage / fee 최적화 donor
+- venue-specific economics donor
+
+Phase 2 메모:
+- infra 안정화 이후에는 `0.02%` 수준의 tighter economics baseline 도 적용 가능하다
+- 최종 목표는 항상 `PnL >= 0`
+
 ## Step 1. Donor Matrix 작성
 
 ### 작업
