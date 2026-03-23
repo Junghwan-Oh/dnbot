@@ -172,7 +172,50 @@ Acceptance Criteria:
 - one-leg fill, drift, stale BBO, close failure 에 대한 대응 경로가 명시된다
 - `institutional-grade execution architecture` 라는 표현이 문서상 추상어가 아니라 구체 설계로 내려온다
 
-### 5. PnL > 0 Workstreams
+### 5. Donor Extraction Sequencing: Infra First, PnL Second
+
+목적:
+
+- donor extraction을 한 덩어리로 보지 않고, 실제 개발 순서에 맞게 **2 phase**로 나눈다
+- 초기 목표는 전략 알파보다 먼저 **매매 인프라 안정화**를 달성하는 것이다
+
+Phase 1 — Trading Infrastructure Hardening:
+
+- execution continuity
+- order lifecycle correctness
+- flat-close reliability
+- safety / verification gate
+- WS / REST truth handling
+- emergency flatten path
+- telemetry / accounting integrity
+
+Phase 1 평가 기준:
+
+- practical baseline 은 우선 `-0.05%` 로 둔다
+- `-0.1%` 이하 손실 로직은 direct strategy 용도로는 즉시 폐기한다
+- 다만 PnL 이 나쁜 로직이라도 execution / safety / telemetry donor 가치는 별도로 평가한다
+
+Phase 2 — PnL Hardening / Optimization:
+
+- strategy quality 개선
+- maker ratio 개선
+- spread / slippage / fee 정책 고도화
+- venue-specific economics 최적화
+- 최종 목표인 `PnL >= 0` 로 수렴
+
+Phase 2 메모:
+
+- 인프라가 안정화되면 `0.02%` 수준의 tighter baseline 도 현실적인 기준으로 볼 수 있다
+- 일부 historical test 에서는 plus-PnL 사례도 있었으므로, tighter economics 는 장기 목표로 취급한다
+
+Acceptance Criteria:
+
+- donor extraction 이 infra phase 와 pnl phase 로 명시적으로 분리된다
+- 초기 donor 평가는 PnL 하나로만 하지 않는다
+- `-0.05%` / `-0.1%` / `PnL >= 0` 의 계층적 의미가 문서에 남는다
+- infra 안정화 이후에만 tighter economics 기준을 적용한다
+
+### 6. PnL > 0 Workstreams
 
 목적:
 

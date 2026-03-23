@@ -170,6 +170,15 @@
 - `10 cycles`는 통과했지만 `20+ cycles` 음수면 economics baseline 탈락이다
 - speed가 빨라도 flatness가 약하면 탈락이다
 
+추가 해석 규칙:
+
+- donor 평가는 **Phase 1 (infra)** 와 **Phase 2 (pnl)** 를 구분해서 읽는다
+- Phase 1 에서는 `-0.05%` 를 practical baseline 으로 둔다
+- `-0.1%` 이하 손실 로직은 direct strategy 용도로는 즉시 폐기한다
+- 단, direct strategy 로 폐기되더라도 execution / safety / telemetry donor 로서의 가치는 별도로 유지할 수 있다
+- infra 안정화 이후에만 `0.02%` 수준의 tighter economics baseline 을 적용한다
+- 최종 승격 기준은 항상 `fee_inclusive_net_pnl_pct >= 0` 이다
+
 ## Lane-Specific Threshold Guidance
 
 ### 2DEX lane
