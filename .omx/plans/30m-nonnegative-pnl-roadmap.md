@@ -12,6 +12,8 @@
 - 월 목표 거래량: `$30M`
 - 하루 비용이 `$200`만 나도 10일이면 seed의 대부분이 소진된다
 - 따라서 `$200/day`도 충분히 좋은 숫자가 아니라, **실질적으로는 `PnL >= 0`가 필수**다
+- 단기 운영 목표는 `1 day / $1M` 를 현실적인 중간 milestone 으로 두고 검증한다
+- 현재 baseline 실행 가정은 `5x leverage`, long/short 모두 사용 가능한 perpetual DEX point farming DN bot 이다
 
 즉 이 계획의 목적은 "낮은 비용"이 아니라 **non-negative economics** 를 달성할 수 있는 donor 추출과 시스템 설계를 만드는 것이다.
 
@@ -37,6 +39,14 @@
 - institutional-grade execution architecture
 
 를 합쳐서 `PnL > 0` 이 가능한 메인라인을 만드는 로드맵이어야 한다.
+
+실제 착수 우선순위는 아래 순서로 해석한다.
+
+1. 매매 인프라 안정성 확보
+2. WebSocket capability / execution quality 강화
+3. economics / PnL 개선
+
+즉 `PnL > 0` 는 최종 목표이지만, 초기 donor 채택의 1차 기준은 인프라 안정성이다.
 
 ## Evidence Base
 
@@ -121,12 +131,15 @@ Acceptance Criteria:
   - fills
   - positions
   - funding / liquidation / account state
+- DEX별 capability를 공통 기능 + venue-specific 기능으로 나눠 inventory 작성
+- 각 DEX의 SDK / GitHub / 공식문서를 통해 사전 capability 조사 후, 최대 구현 후보군을 확보한다
 - microstructure workstream 정의
   - maker queue position proxy
   - slippage-aware skip
   - dynamic spread filter
   - fill-probability-aware reprice
   - BookDepth 기반 exit capacity
+  - BBO 기반 venue-role assignment
 - 공통 benchmark schema 정의
   - gross pnl
   - fees
@@ -136,6 +149,11 @@ Acceptance Criteria:
   - one-leg fill rate
   - flat-close success rate
   - residual position frequency
+
+메모:
+
+- 2DEX 진입 로직에서는 `더 싼 venue long / 더 비싼 venue short` 와 `spread 구조상 더 유리한 side 배치` 가 상충할 수 있다
+- 이 부분은 지금 당장 고정 doctrine으로 박지 않고, WebSocket capability / execution quality / benchmark / PnL 결과를 함께 보며 후속 최적화 대상으로 둔다
 
 Acceptance Criteria:
 
@@ -188,12 +206,19 @@ Phase 1 — Trading Infrastructure Hardening:
 - WS / REST truth handling
 - emergency flatten path
 - telemetry / accounting integrity
+- one-leg fill 방지
+- residual position 방지
+- 기존 포지션 / 기존 주문 상태 확인
+- position truth reconciliation
 
 Phase 1 평가 기준:
 
 - practical baseline 은 우선 `-0.05%` 로 둔다
 - `-0.1%` 이하 손실 로직은 direct strategy 용도로는 즉시 폐기한다
 - 다만 PnL 이 나쁜 로직이라도 execution / safety / telemetry donor 가치는 별도로 평가한다
+- 인프라 안정성을 악화시키는 donor 는 PnL 개선이 있어도 reject 또는 donor-only 로 본다
+- market order heavy logic 는 기본적으로 메인라인 execution doctrine에서 불채택한다
+- baseline 테스트는 `$100 notional`, `3 iter` 로 시작하고 개선 시 `5 -> 10 -> 15 -> 20` iter 로 확장한다
 
 Phase 2 — PnL Hardening / Optimization:
 
@@ -202,6 +227,7 @@ Phase 2 — PnL Hardening / Optimization:
 - spread / slippage / fee 정책 고도화
 - venue-specific economics 최적화
 - 최종 목표인 `PnL >= 0` 로 수렴
+- `alternate` 는 현재 임시 baseline 전략으로만 두고, mean reversion / breakout 및 spread-based venue-role assignment 와 함께 후속 최적화 대상으로 유지한다
 
 Phase 2 메모:
 
