@@ -50,8 +50,10 @@
 
 이유:
 
-- 체결이 안 되면 baseline 후보가 아니다
-- 지금 이 라인에서 더 미시적으로 붙잡아도 우선순위가 낮다
+- 두 다리 모두 no fill 이면 BUILD 자체가 시작되지 못한다
+- 즉 이 로직은 `entry viability`를 만들지 못한다
+- baseline 은 최소한 진입을 만들어야 하는데, 현재 POST_ONLY 는 그 문턱조차 못 넘는다
+- 따라서 `POST_ONLY` 는 더 이상 baseline 후보가 아니다
 
 ### `IOC`
 
@@ -79,6 +81,7 @@
 2. `BookDepth` 데이터가 실전에서 실제로 안 붙어 있어 slippage/sizing gate가 비활성에 가깝다
 3. IOC는 특성상 유동성 비대칭이 있으면 한쪽만 체결되고 나머지는 취소될 수 있다
 4. 현재 build gate는 paired fill viability를 충분히 선별하지 못한다
+5. 그래서 문제는 `UNWIND`만이 아니라, BUILD 단계가 스스로 one-leg risk를 만들어낸다는 점이다
 
 즉:
 
@@ -101,7 +104,7 @@
 ## Current takeaway
 
 - `POST_ONLY`는 예쁘지만 체결 안 나와서 탈락
-- `IOC`는 진입은 되지만 one-leg fill이 반복되어 탈락
+- `IOC`는 진입은 되지만 BUILD 단계에서 one-leg fill을 반복적으로 만들어 탈락
 - 지금 핵심은 새로운 entry mode를 더 파는 게 아니라
   - `paired fill viability`
   - `UNWIND / close / flatness`
