@@ -21,6 +21,12 @@
 기술 규약, truth source, failure taxonomy, gate, kill criteria는
 `1dex-operating-contract.md`가 소유한다.
 
+canonical steering rule:
+
+- `1dex-plan.md` 가 기준점이다
+- `1dex_source_map.md` 는 기준점을 대체하지 않는다
+- source map은 `keep / reject / extract / compare-next` 판정을 plan 에 공급하는 판정판이다
+
 ## Core 1DEX View
 
 현재 `1DEX`의 첫 문제는 `PnL`이 아니다.
@@ -425,6 +431,11 @@ strongly recommended:
 
 - source map 별도 파일:
   - `.omx/plans/1dex_source_map.md`
+
+## Lessons
+
+- steering lesson 별도 파일:
+  - `.omx/plans/1dex-lessons.md`
 
 ## Lessons
 
