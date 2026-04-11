@@ -425,3 +425,8 @@ strongly recommended:
 
 - source map 별도 파일:
   - `.omx/plans/1dex_source_map.md`
+
+## Lessons
+
+- steering lesson 파일:
+  - `.omx/plans/1dex-lessons.md`

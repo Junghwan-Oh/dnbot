@@ -565,6 +565,10 @@ pair baseline commit 과 `dn-build-unwind-fix` 에서 지금 바로 가져와야
 
 으로 다뤄야 한다.
 
+## See Also
+
+- `.omx/plans/1dex-lessons.md`
+
 ## Test Status Rule
 
 - `Stage 2` 는 현재 pair baseline 기준 canonical test가 아니다
