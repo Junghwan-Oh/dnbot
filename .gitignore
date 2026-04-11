@@ -5,3 +5,5 @@ __pycache__/
 .DS_Store
 logs/
 .tmp/
+.omx/state/
+.omx/tmux-hook.json

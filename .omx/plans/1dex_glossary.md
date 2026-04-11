@@ -64,6 +64,15 @@
   - `UNWIND 성공`의 최종 기준
   - stop 여부보다 flatness 가 더 중요하다
 
+## baseline
+
+- 의미:
+  - 현재 시점에서 비교의 기준으로 삼는 기본 구현 / 기본 경로
+- 우리 문맥:
+  - 아무 예쁜 아이디어가 아니라
+  - 실제로 계속 돌려보며 다음 후보들을 비교할 기준선
+  - 체결이 안 되거나 forced liquidation 에 자주 의존하면 baseline 탈락
+
 ## truth
 
 - 의미:
@@ -145,6 +154,19 @@
   - 채널이 붙어 있다는 뜻
 - 우리 문맥:
   - WS connected 로그가 있다고 해서 충분하지 않다
+
+## tmux leader precondition
+
+- 의미:
+  - `omx team` 류 런타임이 현재 세션을 tmux 안의 leader pane 으로 보고 시작한다는 전제
+- 우리 문맥:
+  - tmux 바깥에서 실행하면 worker pane startup / readiness 가 꼬일 수 있다
+  - dirty workspace blocker 를 고쳐도, tmux leader 조건이 안 맞으면 team runtime 이 실패할 수 있다
+- 자동화 가능성:
+  - 일부는 가능하다
+  - 예: preflight 에서 `$TMUX` 확인, 자동 안내, runtime state ignore
+  - 하지만 `AGENTS.md` 에 글을 적는 것만으로 런타임 자체가 자동 수정되지는 않는다
+  - 실제론 wrapper / preflight / config 쪽 보강이 필요하다
 
 ## operationally integrated
 
