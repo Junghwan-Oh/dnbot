@@ -237,6 +237,23 @@
 
 build-stage entry logic total: `7`
 
+## Build controller assumption
+
+현재 build family 비교는 `alternate` cycle controller 위에서 읽는다.
+
+- `BUY_FIRST`
+  - ETH long / SOL short BUILD
+- `SELL_FIRST`
+  - ETH short / SOL long BUILD
+
+즉 지금 compare-next 대상은 controller 자체를 뒤엎는 후보가 아니라,
+
+- 같은 alternating controller 위에서
+- build gate 를 어떻게 다듬을지
+- 어떤 market-data / pricing family 를 올릴지
+
+를 비교하는 것이다.
+
 ## Current Live Verdict
 
 ### `POST_ONLY`
@@ -249,8 +266,11 @@ build-stage entry logic total: `7`
 
 이유:
 
-- 체결이 안 나면 baseline 으로 볼 수 없다
-- 현재는 `entry alpha` 가 아니라 `no fill` source 다
+- live run 2회 기준 BUILD 자체가 시작되지 못했다
+- `min-spread-bps 6` 에서는 gate skip
+- `min-spread-bps 0` 으로 풀어도 양 다리 모두 no fill 이었다
+- 즉 지금 이 family 는 수수료 최적화 후보가 아니라 BUILD 미개시 source 다
+- baseline 문턱을 못 넘으므로 `reject`
 
 ### `IOC`
 
@@ -262,8 +282,130 @@ build-stage entry logic total: `7`
 
 이유:
 
-- one-leg fill 이 재현적으로 반복되면 baseline 으로 볼 수 없다
-- `POST_ONLY`보다 진입성은 낫지만, 현재 상태로는 `unsafe`
+- run 1, run 2 모두 `ETH fill / SOL no fill` 이 반복됐다
+- 즉 현재 BUILD path 가 paired fill 을 만들지 못하고 one-leg risk 를 직접 생성한다
+- `POST_ONLY`보다 진입성은 낫지만, baseline 은 BUILD 단계에서 one-leg 를 만들면 안 된다
+- unwind 가 나중에 복구하더라도 BUILD baseline 성공으로 볼 수 없으므로 `reject`
+
+## Remaining build families to review
+
+### 1. `spread / timing gate family`
+
+- 역할:
+  - BUILD 에 들어갈지 말지를 정하는 front gate
+  - `_wait_for_optimal_entry()`
+  - `_check_spread_profitability()`
+  - `--min-spread-bps`
+- 현재 판정:
+  - `keep but retune`
+- 이유:
+  - gate 라는 개념 자체는 필요하다
+  - 하지만 현재 20bps -> 6bps -> 0bps 식의 고정 threshold 조정만으로는 paired fill 문제를 해결하지 못했다
+  - 즉 이 family 는 유지하되, `profitability hard filter` 하나로 BUILD viability 를 대표시키면 안 된다
+- 현재 해석:
+  - 이 family 는 수익성 필터이면서 동시에 진입 차단기다
+  - 따라서 지금은 `economics gate` 보다 `entry viability gate` 성격으로 다시 써야 한다
+- 다음 판정 질문:
+  - hard block 으로 둘지
+  - soft advisory/logging 으로 내릴지
+  - WS / depth 신호와 결합한 composite gate 로 올릴지
+
+### 2. `websocket-first BBO / BookDepth family`
+
+- 역할:
+  - REST 조회 위주의 현재 build path 를 WS-primary data path 로 끌어올리는 family
+  - BBO 로 tactical pricing
+  - BookDepth 로 sizing / paired fill viability / slippage 추정
+- 현재 판정:
+  - `keep / compare-next`
+- 이유:
+  - 현재 live blocker 는 단순 spread 값이 아니라 paired fill viability 부족이다
+  - 실행 로그에서도 BookDepth data 부재가 직접 드러났다
+  - 이 family 는 바로 그 부족한 `build 전선의 미시 체결 가능성 판단`을 보완하는 유력 후보다
+- 현재 해석:
+  - 이 family 가 살아야 `POST_ONLY`/`IOC` 같은 order mode 비교도 의미가 생긴다
+  - order mode 보다 먼저, build 직전 market-data authority 를 올리는 family 로 읽는 편이 맞다
+- 다음 판정 질문:
+  - BBO 를 WS primary / REST fallback 으로 확실히 올릴 수 있는가
+  - BookDepth 를 실제 sizing / viability gate 에 연결할 수 있는가
+  - live 에서 `No BookDepth data` 상태를 없앨 수 있는가
+
+#### donor documents
+
+- 아래 문서/코드 표면은 `dnbot` 내부가 아니라 external donor checkout `2dex/` 기준이다.
+- `2dex/.omc/plans/nado-dn-pair-websocket-first.md`
+  - WS 를 optional 이 아니라 PRIMARY 로 보라는 설계 문서
+  - public/private stream 분리
+  - WS primary + REST fallback 구조를 명시
+- `2dex/.omc/plans/websocket_rest_trading_optimization.md`
+  - BBO 와 BookDepth 를 단순 연결이 아니라 trading decision 에 어떻게 쓰는지 설명
+  - spread monitoring, sizing, slippage, paired fill viability 의 donor 문서
+- `2dex/.omc/plans/nado-websocket-high-performance.md`
+  - stream latency / reconnect / event routing / high-performance 관점 donor
+  - build 전선에서는 특히 BBO / BookDepth / Fill / PositionChange 의 역할 정리용
+- `2dex/docs/WEBSOCKET_COMPARISON_REPORT.md`
+  - SDK/raw 구현 비교
+  - connected 와 operationally integrated 를 구분해서 읽는 근거
+
+#### actual code surfaces
+
+- `2dex/hedge/exchanges/nado.py`
+  - `fetch_bbo_prices()`
+    - BBO truth 를 읽는 donor client 표면
+  - `get_bbo_handler()`
+    - BBO handler authority 유무를 노출하는 표면
+  - `estimate_slippage()`
+    - BookDepth 를 sizing/slippage path 에 연결하는 API
+  - `check_exit_capacity()`
+    - depth 기반 exit viability API
+- `2dex/hedge/exchanges/nado_websocket_client.py`
+  - 실제 WS client
+  - `subscribe()` / reconnect / authenticate / routing 표면
+- `2dex/hedge/exchanges/nado_bbo_handler.py`
+  - BBO latest price, spread monitor, momentum detector
+- `2dex/hedge/exchanges/nado_bookdepth_handler.py`
+  - local order book state
+  - incremental delta 처리
+  - slippage / liquidity estimation
+- `2dex/hedge/DN_pair_eth_sol_nado.py`
+  - `_check_spread_profitability()`
+    - spread / timing gate family 의 economics gate 표면
+  - `_wait_for_optimal_entry()`
+    - entry timing gate 표면
+  - `No BookDepth data` / `BookDepth unavailable` warnings
+    - live gap 이 실제로 surfaced 되는 donor runtime 표면
+
+#### current gap reading
+
+- donor checkout 기준 코드 표면상 WS/BBO/BookDepth path 는 존재한다
+- 하지만 `dnbot`는 planning repo 이므로, 여기서는 donor 경로를 실행 표면이 아니라 evidence anchor 로만 써야 한다
+- 하지만 live run 에서는 `No BookDepth data` 가 나왔고, current BUILD 는 여전히 query-heavy 였다
+- 따라서 지금 판정은 `구현 없음`이 아니라 `구현은 있으나 build 전선에 충분히 통합되지 않음`이다
+- compare-next 의 초점은 새 기능 추가보다:
+  - BBO authority 를 실제로 WS 쪽으로 끌어올릴 수 있는지
+  - BookDepth availability 를 실제 live 에서 확보할 수 있는지
+  - sizing / viability gate 가 정말 depth 신호를 먹는지
+  로 잡아야 한다
+
+### 3. `per-leg pricing-mode family`
+
+- 역할:
+  - ETH 와 SOL leg 를 같은 주문 모드로 고정하지 않고, leg 별로 다르게 가격/공격성을 조정하는 family
+  - `eth_mode`
+  - `sol_mode`
+  - `bbo_minus_1`, `bbo_plus_1`, `bbo`, `aggressive`, `market`
+- 현재 판정:
+  - `dormant / spec-only`
+- 이유:
+  - branch plan 수준에서는 설계가 있었지만, 현재 HEAD/live baseline 에서는 실제 비교군으로 올라오지 않았다
+  - 그래도 one-leg risk 가 leg 비대칭에서 온다면, 장기적으로는 이 family 가 paired fill 개선에 기여할 수 있다
+- 현재 해석:
+  - 당장 첫 compare-next 후보는 아니다
+  - 먼저 WS/BBO/BookDepth family 로 market-data truth 를 올린 뒤, 그 다음 leg 별 공격성 조정 family 로 보는 순서가 맞다
+- 다음 판정 질문:
+  - asymmetric liquidity 를 leg 별 mode 차등으로 줄일 수 있는가
+  - `aggressive`/`market` 를 baseline 본체가 아니라 bounded fallback 으로만 둘 수 있는가
+  - subaccount lane 으로 넘어가도 재사용 가능한 family 인가
 
 ## Unwind Group Map
 

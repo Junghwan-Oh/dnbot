@@ -90,8 +90,8 @@ canonical steering rule:
 4. `UNWIND / one-leg baseline contract`
    - status: `in progress`
    - remaining:
-     - current live build family들이 다 탈락했을 때
-     - 어떤 next candidate group을 compare-next로 올릴지 결정
+     - current live entry mode 들이 다 탈락한 이후
+     - 남은 build family 3개를 우선순위대로 재선정
 
 필수 확인 항목:
 
@@ -130,6 +130,17 @@ phase 1 은 `BUILD` 와 `UNWIND` 를 동등하게 보지 않는다.
 - BUILD 단계에서도 hedge 가 안 되는 경우가 꽤 있었으므로, `BUILD` 역시 강제 청산 관점에서 봐야 한다
 - 다만 priority 는 여전히 `UNWIND-first` 다
 - 그리고 강제 청산은 `수수료 손실 확률이 매우 높은 긴급 장치` 이므로, baseline 이 여기에 의존하면 안 된다
+
+### Build controller assumption
+
+phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
+
+- `BUY_FIRST`
+  - ETH long / SOL short
+- `SELL_FIRST`
+  - ETH short / SOL long
+
+즉 지금 비교하는 것은 controller 자체가 아니라, 같은 alternating 흐름 위에서 어떤 build family 가 살아남는지다.
 
 이 단계에서 보는 lane:
 
@@ -185,10 +196,37 @@ phase 1 은 `BUILD` 와 `UNWIND` 를 동등하게 보지 않는다.
 
 ### Next build candidate groups
 
-현재 `compare-next`로 올릴 수 있는 후보는 `2개`다.
+현재 build family 총수는 `7개`고, 그중 verdict 가 끝난 것은 `4개`다.
 
-1. `websocket-first BBO / BookDepth family`
-2. `per-leg pricing-mode family`
+- total build candidate groups: `7`
+- verdict fixed: `4 / 7`
+- remaining build families to classify: `3 / 7`
+
+남은 `3개`는 아래다.
+
+1. `spread / timing gate family`
+   - 상태:
+     - `keep but retune`
+   - 의미:
+     - 진입 수익성 필터이면서 동시에 front-line entry blocker
+   - 현재 읽기:
+     - hard profitability threshold 하나로 BUILD viability 를 대표시키면 안 된다
+
+2. `websocket-first BBO / BookDepth family`
+   - 상태:
+     - `keep / compare-next`
+   - 의미:
+     - paired fill viability 와 sizing authority 를 올릴 가장 유력한 후보
+   - 현재 읽기:
+     - order mode 이전에 market-data authority 를 올리는 family 로 본다
+
+3. `per-leg pricing-mode family`
+   - 상태:
+     - `dormant / spec-only`
+   - 의미:
+     - `eth_mode / sol_mode` 를 다르게 주는 leg-level pricing family
+   - 현재 읽기:
+     - 바로 다음 후보라기보다는 WS/BBO/BookDepth 정리 뒤에 올릴 후보
 
 ### phase 1 에서 바로 흡수할 donor
 
@@ -446,7 +484,8 @@ strongly recommended:
 
 1. 이 문서
 2. `1dex-operating-contract.md`
-3. 필요할 때만 source documents
+3. `1dex_execution_insights.md`
+4. 필요할 때만 source documents
 
 ## Final Stance
 
@@ -470,12 +509,12 @@ strongly recommended:
 - source map 별도 파일:
   - `.omx/plans/1dex_source_map.md`
 
+## Execution Insights
+
+- order / WS / REST 실전 해석 파일:
+  - `.omx/plans/1dex_execution_insights.md`
+
 ## Lessons
 
 - steering lesson 별도 파일:
-  - `.omx/plans/1dex-lessons.md`
-
-## Lessons
-
-- steering lesson 파일:
   - `.omx/plans/1dex-lessons.md`
