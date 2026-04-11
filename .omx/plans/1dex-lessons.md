@@ -31,17 +31,49 @@
 4. `source map` 은 코드 감상문이 아니다.
    - `keep / reject / extract / compare-next`를 빠르게 내리기 위한 판정판이다
 
-5. `Stage2` 는 current branch 기준 legacy drift 다.
-   - `Stage3`가 canonical smoke
-   - `Stage4`가 cycle behavior verification
+5. source map의 숫자 가시화는 매우 중요하다.
+   - commit 수
+   - build-stage component 수
+   - 현재 verdict 수
+   - 남은 comparison 후보 수
+   같은 숫자를 dashboard처럼 보이게 해야 현재 위치와 남은 일을 plan으로 쓸 수 있다
 
-6. real mainnet read-only sanity는 live run 전에 반드시 필요하다.
+   예시:
+
+   - `1DEX Nado` branch total commits: `63`
+   - build-stage mapped components: `13 / 13`
+   - entry mode verdicts: `1 / 2 complete`
+   - completed:
+     - `POST_ONLY = reject`
+   - remaining:
+     - `IOC = pending`
+
+   이런 식으로 쓰면:
+
+   - 지금 몇 개를 봤는지
+   - 무엇이 끝났는지
+   - 무엇이 아직 남았는지
+   - 지금 비교의 다음 차례가 뭔지
+
+   가 한 줄씩 바로 보인다.
+
+6. `BUILD / UNWIND` 는 크게 나누고, 그 안에서 다시 구성요소별로 본다.
+   - `BUILD group`
+   - `UNWIND group`
+   - `cross-cutting truth / risk`
+   처럼 큰 그룹으로 먼저 나누고,
+   그 다음 각 그룹 안에서 구성요소별 `keep / reject / compare-next`를 판정하는 방식이 좋다
+
+7. real mainnet read-only sanity는 live run 전에 반드시 필요하다.
    - 그래야 env 문제와 로직 문제를 분리할 수 있다
 
-7. `min-spread-bps 6` 에서 skip, `0` 에서도 no fill 이면
+8. `min-spread-bps 6` 에서 skip, `0` 에서도 no fill 이면
    - 지금 blocker 는 cleanup 이 아니라 `entry viability` 다
 
-8. 문서는 로컬에 오래 묵히지 말고 GitHub visible 상태로 자주 올리는 편이 steering correction 에 더 좋다.
+9. `IOC` 는 `POST_ONLY`보다 체결 가능성은 높지만, one-leg fill을 만들 수 있다.
+   - 즉 `POST_ONLY reject` 다음 후보가 될 수는 있어도, 바로 baseline 으로 승격되지는 않는다
+
+10. 문서는 로컬에 오래 묵히지 말고 GitHub visible 상태로 자주 올리는 편이 steering correction 에 더 좋다.
 
 ## Methodology To Reuse For 2DEX Team
 
@@ -68,13 +100,18 @@
    - 남은 comparison 후보 수
    를 숫자로 가시화한다
 
+4.5 plan은 기준점으로, source map은 dashboard형 판정판으로 쓴다.
+   - plan = 방향 / phase / 우선순위
+   - source map = 현재 위치 / 진행률 / 남은 후보 수
+   - 운영 중에는 둘을 같이 봐야 한다
+
 5. 초반에는 미시 최적화 대신 `reject`를 빨리 내린다.
    - live 에서 막히는 front gate는 빨리 버린다
    - 약한 후보에 오래 매달리지 않는다
 
 6. 테스트 ladder를 현재 코드 구조 기준으로 다시 고정한다.
-   - drift 난 테스트는 과감히 legacy 로 내린다
-   - 현재 branch와 맞는 smoke / cycle test를 canonical 로 잡는다
+   - drift 난 테스트는 과감히 legacy 로 내리되
+   - lesson 문서 안에서는 stage 이름보다 역할 중심으로 요약한다
 
 7. real read-only sanity 를 먼저 한다.
    - env / key / account / position 조회가 되는지 먼저 본다
@@ -103,11 +140,13 @@
 - `1dex-operating-contract.md`
 - `1dex_source_map.md`
 - `1dex_glossary.md`
+- `1dex-lessons.md`
 
 이 4개를 보면:
 
 - 기준점이 뭔지
 - 판정판이 뭔지
+- 숫자로 현재 위치를 어떻게 잡는지
 - 어떤 후보를 빨리 버려야 하는지
 - 어떻게 live result 를 verdict 로 바꾸는지
 
