@@ -28,7 +28,24 @@
   - 즉시 체결 가능한 만큼만 체결하고, 나머지는 취소하는 주문 방식
 - 우리 문맥:
   - POST_ONLY 보다 체결 가능성은 높고, 수수료는 더 불리할 수 있다
-  - 현재 다음 entry comparison 후보로 본다
+  - 하지만 현재 live run 에서는 BUILD 단계에서 one-leg fill 을 반복적으로 만들었다
+  - 그래서 현재 baseline entry mode 로는 `reject` 상태다
+
+## maker-first
+
+- 의미:
+  - 수수료와 rebate 를 우선해서 resting order 중심으로 진입하려는 주문 성향
+- 우리 문맥:
+  - 현재 `POST_ONLY maker-first family` 를 가리킨다
+  - 비용 구조는 예쁘지만, live 에서 fill 이 안 나오면 baseline 탈락이다
+
+## taker-immediate
+
+- 의미:
+  - 즉시 체결 가능성을 높이기 위해 공격적으로 진입하는 주문 성향
+- 우리 문맥:
+  - 현재 `IOC taker-immediate family` 를 가리킨다
+  - 진입성은 올라가지만 paired fill 을 못 만들면 baseline 탈락이다
 
 ## fallback
 
@@ -55,6 +72,36 @@
   - 원래는 PnL 보호용
   - 지금은 진입 자체를 막는지 검증 대상
   - `6bps` 에서는 skip, `0bps` 에서는 BUILD 시도까지 갔음
+
+## spread / timing gate family
+
+- 의미:
+  - spread threshold 와 entry timing wait 를 함께 묶은 BUILD front gate family
+- 우리 문맥:
+  - `_wait_for_optimal_entry()`
+  - `_check_spread_profitability()`
+  - `--min-spread-bps`
+  를 같이 본다
+  - 원래는 economics gate 였지만, 지금은 entry viability gate 역할까지 같이 하고 있다
+
+## websocket-first BBO / BookDepth family
+
+- 의미:
+  - REST 조회보다 WebSocket 기반 BBO / BookDepth 를 먼저 권위 경로로 삼는 build family
+- 우리 문맥:
+  - order mode 비교보다 먼저 봐야 할 next candidate family
+  - 목적은 더 좋은 주문 타입 찾기가 아니라
+  - build 직전 paired fill viability 와 sizing authority 를 올리는 것이다
+
+## per-leg pricing-mode family
+
+- 의미:
+  - ETH 와 SOL 두 leg 를 같은 가격모드로 묶지 않고 leg 별로 다르게 주는 family
+- 우리 문맥:
+  - `eth_mode`, `sol_mode`
+  - `bbo_minus_1`, `bbo_plus_1`, `bbo`, `aggressive`, `market`
+  를 조합하는 설계 family 다
+  - 아직은 `dormant / spec-only` 상태다
 
 ## flatness
 
@@ -182,3 +229,61 @@
 - 우리 문맥:
   - 메인 방법이 아니라 2차 fallback
   - 수수료 손실 가능성이 크므로 여기에 의존하면 baseline 탈락
+
+## alternate / alternating controller
+
+- 의미:
+  - cycle 마다 방향을 번갈아 가는 상위 execution controller
+- 우리 문맥:
+  - `BUY_FIRST`
+    - ETH long / SOL short BUILD
+  - `SELL_FIRST`
+    - ETH short / SOL long BUILD
+  - 현재 build family 비교는 이 controller 를 유지한 채, 그 위의 gate/data/pricing family 를 비교하는 방식이다
+
+## BBO / BookDepth
+
+- 의미:
+  - BBO 는 최우선 bid/ask
+  - BookDepth 는 여러 depth level 의 order book
+- 우리 문맥:
+  - BBO 는 빠른 가격 판단
+  - BookDepth 는 sizing, slippage, paired fill viability 판단
+  - 둘은 경쟁이 아니라 역할 분담 관계다
+
+## bbo_minus_1
+
+- 의미:
+  - 현재 top-of-book 보다 한 tick 덜 공격적으로 가격을 두는 모드
+- 우리 문맥:
+  - fill 가능성은 낮아질 수 있지만 maker 성격은 강해진다
+
+## bbo_plus_1
+
+- 의미:
+  - 현재 top-of-book 보다 한 tick 더 공격적으로 가격을 두는 모드
+- 우리 문맥:
+  - fill 가능성은 올라갈 수 있지만 비용/one-leg risk 도 같이 봐야 한다
+
+## bbo
+
+- 의미:
+  - 현재 BBO 자체를 기준 가격으로 쓰는 모드
+- 우리 문맥:
+  - 가장 중립적인 기준선 후보로 읽을 수 있다
+
+## aggressive
+
+- 의미:
+  - 더 빠른 체결을 위해 가격을 더 공격적으로 잡는 모드
+- 우리 문맥:
+  - `market` 보다는 덜 극단적이지만
+  - one-leg 를 줄이는지 늘리는지는 live 검증이 필요하다
+
+## market
+
+- 의미:
+  - 즉시 체결을 최우선으로 하는 시장가 또는 시장가 성격에 가까운 모드
+- 우리 문맥:
+  - fill 자체는 유리할 수 있지만
+  - fee/slippage 비용이 크고 baseline 본체보다 fallback 성격으로 읽는 편이 맞다

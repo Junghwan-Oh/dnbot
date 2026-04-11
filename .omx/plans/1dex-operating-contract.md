@@ -565,13 +565,10 @@ pair baseline commit 과 `dn-build-unwind-fix` 에서 지금 바로 가져와야
 
 으로 다뤄야 한다.
 
-See also:
-
-- `.omx/plans/1dex-lessons.md`
-
 ## See Also
 
 - `.omx/plans/1dex-lessons.md`
+- `.omx/plans/1dex_execution_insights.md`
 
 ## Test Status Rule
 

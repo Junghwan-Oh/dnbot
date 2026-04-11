@@ -26,7 +26,7 @@
    - 본체는 건강한 `BUILD / UNWIND` 여야 한다
 
 3. `POST_ONLY` 가 경제적으로 예뻐 보여도, live 에서 fill 이 안 나오면 baseline 후보가 아니다.
-   - current verdict: `POST_ONLY = reject`
+   - 더 일반적으로는, 경제적으로 예뻐 보이는 entry mode라도 live 에서 fill 이 안 나오면 baseline 후보가 아니다
 
 4. `source map` 은 코드 감상문이 아니다.
    - `keep / reject / extract / compare-next`를 빠르게 내리기 위한 판정판이다
@@ -42,11 +42,17 @@
 
    - `1DEX Nado` branch total commits: `63`
    - build-stage mapped components: `13 / 13`
-   - entry mode verdicts: `1 / 2 complete`
+   - build candidate groups mapped: `7 / 7`
+   - entry mode verdicts: `2 / 2 complete`
+   - build family verdict fixed: `4 / 7`
+   - remaining build families: `3 / 7`
    - completed:
      - `POST_ONLY = reject`
-   - remaining:
-     - `IOC = pending`
+     - `IOC = reject`
+   - next review groups:
+     - `spread / timing gate family`
+     - `websocket-first BBO / BookDepth family`
+     - `per-leg pricing-mode family`
 
    이런 식으로 쓰면:
 
@@ -67,13 +73,15 @@
 7. real mainnet read-only sanity는 live run 전에 반드시 필요하다.
    - 그래야 env 문제와 로직 문제를 분리할 수 있다
 
-8. `min-spread-bps 6` 에서 skip, `0` 에서도 no fill 이면
+8. front-line entry filter를 풀어도 진입이 안 되면
    - 지금 blocker 는 cleanup 이 아니라 `entry viability` 다
 
-9. `IOC` 는 `POST_ONLY`보다 체결 가능성은 높지만, one-leg fill을 만들 수 있다.
-   - 즉 `POST_ONLY reject` 다음 후보가 될 수는 있어도, 바로 baseline 으로 승격되지는 않는다
+9. 더 공격적인 entry mode라도 BUILD 단계에서 one-leg fill 을 재현적으로 만들면 baseline 후보가 아니다.
+   - one-leg 는 unwind 가 처리하더라도 baseline 성공으로 보면 안 된다
 
-10. 문서는 로컬에 오래 묵히지 말고 GitHub visible 상태로 자주 올리는 편이 steering correction 에 더 좋다.
+10. 문서는 로컬에서 먼저 batch diff 로 보여주고, 의미 있는 묶음이 쌓이면 remote 로 올린다.
+   - 작은 steering correction 은 local diff 에서 먼저 받고
+   - remote 는 기준점이 흔들리지 않을 정도로 묶였을 때만 사용한다
 
 ## Methodology To Reuse For 2DEX Team
 
@@ -109,9 +117,9 @@
    - live 에서 막히는 front gate는 빨리 버린다
    - 약한 후보에 오래 매달리지 않는다
 
-6. 테스트 ladder를 현재 코드 구조 기준으로 다시 고정한다.
+6. 테스트는 현재 코드 구조 기준으로 다시 고정한다.
    - drift 난 테스트는 과감히 legacy 로 내리되
-   - lesson 문서 안에서는 stage 이름보다 역할 중심으로 요약한다
+   - lesson 문서 안에서는 test stage 이름보다 역할 중심으로 요약한다
 
 7. real read-only sanity 를 먼저 한다.
    - env / key / account / position 조회가 되는지 먼저 본다
@@ -125,8 +133,9 @@
      - post position 0
    - 이런 결과를 바로 `reject / pending / keep` 으로 연결한다
 
-9. 문서는 작은 배치로 자주 GitHub main 에 올린다.
-   - steering correction 을 빠르게 받기 위해서다
+9. 문서는 작은 배치 단위로 유지하되, local diff 와 remote publish 를 분리한다.
+   - local diff 는 빠른 steering 용
+   - remote publish 는 기준점 batch 반영용
 
 10. 본체와 fallback 을 분리해서 본다.
    - healthy baseline = 본체가 99%+ 건강하게 작동
@@ -134,15 +143,22 @@
 
 ## 2DEX Team Hand-off Hint
 
-`2DEX` 팀에 전달할 때는 아래 링크 4개만 먼저 보면 된다.
+`2DEX` 팀에 전달할 때는 아래 핵심 문서들만 먼저 보면 된다.
 
 - `1dex-plan.md`
+  - 기준점, phase, 우선순위
 - `1dex-operating-contract.md`
+  - truth / gate / kill criteria
 - `1dex_source_map.md`
+  - 숫자 dashboard 와 keep/reject/compare-next 판정판
 - `1dex_glossary.md`
+  - 용어 통일
+- `1dex_execution_insights.md`
+  - order / WS / REST 실전 해석
 - `1dex-lessons.md`
+  - 재사용 가능한 steering 방법론
 
-이 4개를 보면:
+이 문서들을 보면:
 
 - 기준점이 뭔지
 - 판정판이 뭔지
@@ -158,4 +174,4 @@
 
 - `UNWIND / close / flatness` 는 계속 추출 가치가 있고
 - `POST_ONLY BUILD entry` 는 더 이상 오래 붙잡고 미시 최적화할 가치가 적다
-- 다음 비교 후보는 `IOC` 다
+- BUILD 판정은 entry mode 하나씩 오래 물고 가는 방식보다 family 단위로 이동해야 한다
