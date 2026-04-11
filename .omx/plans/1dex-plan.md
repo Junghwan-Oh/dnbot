@@ -420,3 +420,8 @@ strongly recommended:
 
 - 용어 정리는 별도 파일:
   - `.omx/plans/1dex_glossary.md`
+
+## Source Map
+
+- source map 별도 파일:
+  - `.omx/plans/1dex_source_map.md`
