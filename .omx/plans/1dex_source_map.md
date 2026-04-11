@@ -43,16 +43,92 @@
 - ws capability blocks: `6`
 - rest/query truth blocks: `2`
 
+### Build candidate universe
+
+- total build candidate groups: `7`
+- group mapping complete: `7 / 7`
+
+그룹:
+
+1. simultaneous pair execution core
+   - status: `keep`
+2. spread / timing gate family
+   - status: `keep but retune`
+3. POST_ONLY maker-first family
+   - status: `reject`
+4. IOC taker-immediate family
+   - status: `reject`
+5. websocket-first BBO / BookDepth family
+   - status: `keep / compare-next`
+6. per-leg pricing-mode family (`eth_mode` / `sol_mode`)
+   - status: `dormant / spec-only`
+7. continuous execution / 100-trades family
+   - status: `late-phase / not now`
+
 ### Verdict progress
 
 - entry mode verdicts total: `2`
-- verdict complete: `1 / 2`
+- verdict complete: `2 / 2`
 - completed:
   - `POST_ONLY` = `reject`
-- remaining:
-  - `IOC` = `pending`
+  - `IOC` = `reject`
 
 ## Build Group Map
+
+### Build candidate groups: `7`
+
+1. `simultaneous pair execution core`
+   - source hints:
+     - `place_simultaneous_orders()`
+     - `execute_build_cycle()`
+   - status:
+     - `keep`
+
+2. `spread / timing gate family`
+   - source hints:
+     - `_wait_for_optimal_entry()`
+     - `_check_spread_profitability()`
+     - `spread-filter-optimization.md`
+   - status:
+     - `keep but retune`
+
+3. `POST_ONLY maker-first family`
+   - source hints:
+     - `use_post_only`
+     - `spread-filter-optimization.md`
+     - `spread-filter-usage.md`
+   - status:
+     - `reject`
+
+4. `IOC taker-immediate family`
+   - source hints:
+     - `place_ioc_order()`
+     - `use_ioc`
+     - `nado.py`
+   - status:
+     - `reject`
+
+5. `websocket-first BBO / BookDepth family`
+   - source hints:
+     - `nado-dn-pair-websocket-first.md`
+     - `nado-websocket-high-performance.md`
+     - `WEBSOCKET_COMPARISON_REPORT.md`
+   - status:
+     - `keep / compare-next`
+
+6. `per-leg pricing-mode family`
+   - source hints:
+     - `eth_mode`
+     - `sol_mode`
+     - `bbo_minus_1 / bbo_plus_1 / bbo / aggressive / market`
+   - status:
+     - `dormant / spec-only`
+
+7. `continuous execution / 100-trades family`
+   - source hints:
+     - `dn-bot-1M-volume-1day-lossless.md`
+   - status:
+     - `late-phase / not now`
 
 ### Build-stage function blocks: `5`
 
@@ -178,11 +254,16 @@ build-stage entry logic total: `7`
 
 ### `IOC`
 
+- live run result:
+  - real run 1: `ETH fill / SOL no fill`
+  - real run 2: `ETH fill / SOL no fill`
 - current verdict:
-  - `pending`
-- 이유:
-  - 아직 real comparison 안 함
-  - 다음 비교 후보
+  - `reject as live baseline entry mode`
+
+이유:
+
+- one-leg fill 이 재현적으로 반복되면 baseline 으로 볼 수 없다
+- `POST_ONLY`보다 진입성은 낫지만, 현재 상태로는 `unsafe`
 
 ## Unwind Group Map
 
@@ -233,12 +314,18 @@ build-stage entry logic total: `7`
 4. stage4 cycle verification green
 5. mainnet read-only sanity succeeded
 6. real 1-cycle run succeeded to BUILD attempt
-7. current blocker:
-   - `POST_ONLY` no fill
+7. `POST_ONLY` live verdict fixed
+8. `IOC` live verdict fixed
+9. current blocker:
+   - no viable current baseline entry family
 
 ## Next
 
 1. keep `UNWIND group`
 2. keep `BUILD one-leg handling`
 3. reject `POST_ONLY` as baseline entry
-4. compare `IOC` next
+4. reject `IOC` as current live baseline entry
+5. compare-next:
+   - websocket-first BBO / BookDepth family
+   - per-leg pricing-mode family
+6. do not assume current `POST_ONLY/IOC` baseline viability

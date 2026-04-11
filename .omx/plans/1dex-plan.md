@@ -64,6 +64,35 @@ canonical steering rule:
 - pair basis risk 논쟁이 아니다
 - "기존 구현을 baseline 수준까지 안정화할 수 있느냐"다
 
+### Phase 1 dashboard
+
+- active items total: `4`
+- completed / confirmed: `3 / 4`
+- in progress: `1 / 4`
+- remaining after current batch: `1`
+
+세부:
+
+1. `POST_ONLY verdict`
+   - status: `complete`
+   - result: `reject`
+
+2. `source map`
+   - status: `complete`
+   - result:
+     - build-stage `13 / 13` mapped
+     - build candidate groups `7 / 7` mapped
+
+3. `IOC comparison`
+   - status: `complete`
+   - result: `reject`
+
+4. `UNWIND / one-leg baseline contract`
+   - status: `in progress`
+   - remaining:
+     - current live build family들이 다 탈락했을 때
+     - 어떤 next candidate group을 compare-next로 올릴지 결정
+
 필수 확인 항목:
 
 - 3-cycle smoke에서 flat close
@@ -150,7 +179,16 @@ phase 1 은 `BUILD` 와 `UNWIND` 를 동등하게 보지 않는다.
 
 - `UNWIND / close / flatness` 관련 로직은 계속 추출 가치가 있다
 - 하지만 현재 `POST_ONLY BUILD entry` 로직은 live baseline 으로는 `reject`
-- 즉 이 라인은 `entry alpha candidate` 가 아니라 `infra lesson / unwind lesson` source 로 본다
+- `IOC BUILD entry` 도 real run 재현 기준 one-leg fill 이 반복되어 현재 live baseline 으로는 `reject`
+- 즉 현재 `HEAD`의 두 entry mode 모두 baseline 에서 탈락했다
+- 이 라인은 당분간 `infra lesson / unwind lesson` source 로 본다
+
+### Next build candidate groups
+
+현재 `compare-next`로 올릴 수 있는 후보는 `2개`다.
+
+1. `websocket-first BBO / BookDepth family`
+2. `per-leg pricing-mode family`
 
 ### phase 1 에서 바로 흡수할 donor
 
