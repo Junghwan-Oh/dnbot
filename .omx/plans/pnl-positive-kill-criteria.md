@@ -1,5 +1,14 @@
 # PnL Positive Kill Criteria Plan
 
+> REFERENCE ONLY
+>
+> This is no longer the authoritative operating contract for `1DEX`.
+> For `1DEX` work, use:
+> - `.omx/plans/1dex-plan.md`
+> - `.omx/plans/1dex-operating-contract.md`
+>
+> This document remains as a cross-lane numeric gate / kill-criteria reference.
+
 작성일: 2026-03-20
 
 ## 목적
