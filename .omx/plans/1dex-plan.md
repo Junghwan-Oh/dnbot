@@ -93,6 +93,13 @@ canonical steering rule:
      - current live entry mode 들이 다 탈락한 이후
      - 남은 build family 3개를 우선순위대로 재선정
 
+현재 batch execution order:
+
+1. `spread / timing gate family`
+2. `websocket-first BBO / BookDepth family`
+3. `per-leg pricing-mode family`
+4. 그 다음 `UNWIND / one-leg baseline contract` 마감
+
 필수 확인 항목:
 
 - 3-cycle smoke에서 flat close
@@ -211,6 +218,8 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
      - 진입 수익성 필터이면서 동시에 front-line entry blocker
    - 현재 읽기:
      - hard profitability threshold 하나로 BUILD viability 를 대표시키면 안 된다
+      - donor 코드상 `_check_spread_profitability()` 는 profitability filter 가 아니라 sanity check 로 적혀 있다
+      - `_wait_for_optimal_entry()` 는 timeout 후에도 진입하므로, 현재는 "optimal entry"보다 "timeout-based entry release"에 가깝다
 
 2. `websocket-first BBO / BookDepth family`
    - 상태:
@@ -218,15 +227,27 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
    - 의미:
      - paired fill viability 와 sizing authority 를 올릴 가장 유력한 후보
    - 현재 읽기:
-     - order mode 이전에 market-data authority 를 올리는 family 로 본다
+      - order mode 이전에 market-data authority 를 올리는 family 로 본다
+      - donor 코드상 `No BookDepth data`일 때도 target quantity 로 진행하는 경로가 있어, WS 연결보다 BookDepth gate 강제 여부가 더 핵심이다
 
 3. `per-leg pricing-mode family`
    - 상태:
-     - `dormant / spec-only`
+      - `dormant / spec-only`
    - 의미:
-     - `eth_mode / sol_mode` 를 다르게 주는 leg-level pricing family
+      - `eth_mode / sol_mode` 를 다르게 주는 leg-level pricing family
    - 현재 읽기:
-     - 바로 다음 후보라기보다는 WS/BBO/BookDepth 정리 뒤에 올릴 후보
+      - 바로 다음 후보라기보다는 WS/BBO/BookDepth 정리 뒤에 올릴 후보
+
+### Current BUILD batch goal
+
+이 batch 의 목표는 새 order mode를 더 찾는 것이 아니다.
+
+- `spread`를 profitability gate가 아니라 sanity/entry-release gate로 다시 고정
+- `timeout entry`를 optimality proof로 간주하지 않기
+- `BookDepth unavailable` 상태에서는 BUILD가 그냥 진행되지 않도록 contract를 더 엄격히 고정
+
+즉 이번 batch 는 `entry mode 비교`가 아니라
+`BUILD gate / market-data authority / sizing authority`를 다시 자르는 작업이다.
 
 ### phase 1 에서 바로 흡수할 donor
 
