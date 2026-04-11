@@ -101,6 +101,32 @@
 - WS를 쓴다고 해도 build paired fill 문제를 자동으로 해결해주지 않는다
 - `BookDepth`와 paired viability gate가 실제로 살아 있어야 의미가 있다
 
+### BUILD gate semantics
+
+donor code 기준 현재 BUILD gate에서 보이는 핵심은 아래다.
+
+1. `_check_spread_profitability()` 는 코드 주석상 profitability filter 가 아니라 sanity check 다.
+2. `_wait_for_optimal_entry()` 는 threshold 미달이어도 timeout 후 진입한다.
+3. `estimate_slippage()` 는 BookDepth handler 가 없으면 `999999`를 반환한다.
+4. 하지만 sizing 경로에서는 `No BookDepth data`일 때도 target quantity 로 계속 진행하는 분기가 있다.
+
+즉:
+
+- 현재 BUILD blocker 는 "spread threshold 수치" 하나가 아니다
+- `spread`, `timing`, `BookDepth availability`가 한 덩어리로 섞여 있다
+- 이걸 분리하지 않으면 다음 entry mode를 바꿔도 같은 실패를 반복할 가능성이 높다
+
+### Current BUILD-first queue
+
+현재 배치의 실행 순서는 이렇게 읽는 게 맞다.
+
+1. `spread / timing gate family` 재판정
+2. `websocket-first BBO / BookDepth family` compare-next
+3. 그 다음에야 `per-leg pricing-mode family`
+
+`UNWIND`는 여전히 큰 리스크이지만,
+현재 batch 에서는 BUILD gate와 market-data authority 를 먼저 다시 자르는 쪽이 맞다.
+
 ## Current takeaway
 
 - `POST_ONLY`는 예쁘지만 체결 안 나와서 탈락

@@ -305,10 +305,18 @@ build-stage entry logic total: `7`
 - 현재 해석:
   - 이 family 는 수익성 필터이면서 동시에 진입 차단기다
   - 따라서 지금은 `economics gate` 보다 `entry viability gate` 성격으로 다시 써야 한다
+- donor code reading:
+  - `_check_spread_profitability()` 는 코드 주석상 profitability filter 가 아니라 sanity check 다
+  - `_wait_for_optimal_entry()` 는 threshold 미달이어도 timeout 후 진입을 허용한다
+  - 따라서 현재 문제는 "spread threshold가 너무 높다"보다 "gate semantics가 섞여 있다" 쪽에 더 가깝다
 - 다음 판정 질문:
   - hard block 으로 둘지
   - soft advisory/logging 으로 내릴지
   - WS / depth 신호와 결합한 composite gate 로 올릴지
+- 현재 batch acceptance:
+  - `spread` 를 profitability hard gate로 문서화하지 않기
+  - timeout 진입은 `optimal_spread`와 분리해서 읽기
+  - BUILD entry release 조건을 spread 단독에서 WS/BBO/BookDepth 결합 판단으로 옮길지 결정
 
 ### 2. `websocket-first BBO / BookDepth family`
 
@@ -325,10 +333,18 @@ build-stage entry logic total: `7`
 - 현재 해석:
   - 이 family 가 살아야 `POST_ONLY`/`IOC` 같은 order mode 비교도 의미가 생긴다
   - order mode 보다 먼저, build 직전 market-data authority 를 올리는 family 로 읽는 편이 맞다
+- donor code reading:
+  - `estimate_slippage()` 는 BookDepth handler 가 없으면 `999999`를 반환한다
+  - 하지만 `calculate_order_size_with_slippage()` 쪽에서는 `No BookDepth data`면 target quantity 로 계속 진행한다
+  - 즉 현재 blocker 는 "WS가 없다"보다 "BookDepth 부재가 BUILD stop 조건이 아니다" 쪽이다
 - 다음 판정 질문:
   - BBO 를 WS primary / REST fallback 으로 확실히 올릴 수 있는가
   - BookDepth 를 실제 sizing / viability gate 에 연결할 수 있는가
   - live 에서 `No BookDepth data` 상태를 없앨 수 있는가
+- 현재 batch acceptance:
+  - `No BookDepth data`를 단순 warning 이 아니라 BUILD blocker 후보로 승격할지 결정
+  - `get_bbo_handler()` / `get_bookdepth_handler()` 가 없을 때 진입을 계속 허용할지 명시
+  - BookDepth 없는 sizing path를 baseline 에서 허용할지 금지할지 판정
 
 #### donor documents
 
@@ -463,11 +479,12 @@ build-stage entry logic total: `7`
 
 ## Next
 
-1. keep `UNWIND group`
-2. keep `BUILD one-leg handling`
-3. reject `POST_ONLY` as baseline entry
-4. reject `IOC` as current live baseline entry
-5. compare-next:
-   - websocket-first BBO / BookDepth family
-   - per-leg pricing-mode family
-6. do not assume current `POST_ONLY/IOC` baseline viability
+1. retune `spread / timing gate family`
+2. compare-next `websocket-first BBO / BookDepth family`
+3. classify whether `No BookDepth data` is a hard BUILD blocker
+4. only after 1-3, review `per-leg pricing-mode family`
+5. keep `BUILD one-leg handling`
+6. keep `UNWIND group`
+7. reject `POST_ONLY` as baseline entry
+8. reject `IOC` as current live baseline entry
+9. do not assume current `POST_ONLY/IOC` baseline viability
