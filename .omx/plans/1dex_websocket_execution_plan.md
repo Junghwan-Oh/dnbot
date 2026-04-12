@@ -16,8 +16,8 @@
 
 이 문서는 용어 사전을 소유하지 않는다.
 용어는 `1dex_glossary.md`,
-상위 우선순위는 `1dex-plan.md`,
-판정은 `1dex_source_map.md`,
+상위 우선순위는 `1dex-2tickers/1dex-plan.md`,
+판정은 `1dex-2tickers/1dex_source_map.md`,
 배경 해석은 `1dex_execution_insights.md`가 소유한다.
 
 ## 현재 결론 요약

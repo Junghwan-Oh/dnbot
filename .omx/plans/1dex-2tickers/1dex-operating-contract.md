@@ -14,7 +14,7 @@
 - kill criteria
 - flatten-required semantics
 
-방향/단계/우선순위는 `1dex-plan.md`가 소유한다.
+방향/단계/우선순위는 `1dex-2tickers/1dex-plan.md`가 소유한다.
 
 ## Non-Negotiables
 

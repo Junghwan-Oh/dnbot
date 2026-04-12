@@ -19,12 +19,12 @@
 
 이 문서는 `1DEX`의 방향, 단계, 우선순위만 소유한다.
 기술 규약, truth source, failure taxonomy, gate, kill criteria는
-`1dex-operating-contract.md`가 소유한다.
+`1dex-2tickers/1dex-operating-contract.md`가 소유한다.
 
 canonical steering rule:
 
-- `1dex-plan.md` 가 기준점이다
-- `1dex_source_map.md` 는 기준점을 대체하지 않는다
+- `1dex-2tickers/1dex-plan.md` 가 기준점이다
+- `1dex-2tickers/1dex_source_map.md` 는 기준점을 대체하지 않는다
 - source map은 `keep / reject / extract / compare-next` 판정을 plan 에 공급하는 판정판이다
 
 ## Historical Anchor Reset
@@ -688,7 +688,7 @@ strongly recommended:
 ## Reading Order
 
 1. 이 문서
-2. `1dex-operating-contract.md`
+2. `1dex-2tickers/1dex-operating-contract.md`
 3. `1dex_execution_insights.md`
 4. 필요할 때만 source documents
 
@@ -712,7 +712,7 @@ strongly recommended:
 ## Source Map
 
 - source map 별도 파일:
-  - `.omx/plans/1dex_source_map.md`
+  - `.omx/plans/1dex-2tickers/1dex_source_map.md`
 
 ## Execution Insights
 

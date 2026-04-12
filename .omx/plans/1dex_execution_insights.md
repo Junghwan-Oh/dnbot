@@ -77,7 +77,7 @@
   - `POST_ONLY -> IOC fallback` 경로로 current mainnet 1-cycle completion reached
   - post-check flat `0/0`
 
-즉 현재 `historical best reference`는 `c4f7c75`다.
+즉 현재 `historical best reference`는 `1dex-2tickers` 하위 문서군의 기준점인 `c4f7c75`다.
 
 이 insight 의 핵심은 단순한 commit ranking 이 아니다.
 

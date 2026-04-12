@@ -181,11 +181,11 @@
 
 `2DEX` 팀에 전달할 때는 아래 핵심 문서들만 먼저 보면 된다.
 
-- `1dex-plan.md`
+- `1dex-2tickers/1dex-plan.md`
   - 기준점, phase, 우선순위
-- `1dex-operating-contract.md`
+- `1dex-2tickers/1dex-operating-contract.md`
   - truth / gate / kill criteria
-- `1dex_source_map.md`
+- `1dex-2tickers/1dex_source_map.md`
   - 숫자 dashboard 와 keep/reject/compare-next 판정판
 - `1dex_glossary.md`
   - 용어 통일

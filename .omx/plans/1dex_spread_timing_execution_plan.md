@@ -18,8 +18,8 @@ donor 코드 기준으로 바로 실행할 수 있게 적는 runbook 이다.
 이 문서는 용어 정의를 소유하지 않는다.
 용어 정의는 `1dex_glossary.md`,
 배경 해석은 `1dex_execution_insights.md`,
-상위 우선순위는 `1dex-plan.md`,
-판정판은 `1dex_source_map.md`가 소유한다.
+상위 우선순위는 `1dex-2tickers/1dex-plan.md`,
+판정판은 `1dex-2tickers/1dex_source_map.md`가 소유한다.
 
 ## 왜 이 테스트를 먼저 하나
 
