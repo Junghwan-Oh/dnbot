@@ -30,109 +30,283 @@
 
 그래서 `execution insights`가 가장 맞다.
 
-## Preserved Analysis
+## Grouping Rule
 
-### `POST_ONLY`
+이 파일은 앞으로 `BUILD group insights` 와 `UNWIND group insights` 로 나눠서 읽는다.
 
-의미:
+이유:
 
-- maker 성격의 resting order를 노리는 방식
-- 수수료는 예뻐 보이지만, 실제 체결이 안 나면 아무 의미가 없다
+- 지금 우리가 부딪히는 실전 문제는 전부 "order mode의 취향 차이"가 아니라
+- BUILD에서 무엇을 gate로 보고
+- 무엇을 authority로 보고
+- 무엇을 blocker로 승격할지의 문제이기 때문이다
 
-실전 결과:
+또한 아래 두 가지를 분리해서 읽는다.
+
+1. `risk priority`
+   - 어느 failure가 더 치명적인가
+2. `batch execution order`
+   - 이번 배치에서 무엇을 먼저 잘라야 하는가
+
+현재 `1DEX`에서는:
+
+- risk priority 는 여전히 `UNWIND` 쪽이 더 높다
+- 하지만 batch execution order 는 `BUILD-first` 다
+
+즉, 지금 배치에서 `BUILD`를 먼저 자세히 적는 것은
+`UNWIND`가 덜 중요해서가 아니라
+현재 비교 후보 3개가 전부 BUILD 층에 있기 때문이다.
+
+## BUILD Group Insights
+
+### 1. 왜 지금 BUILD group을 먼저 자르나
+
+지금 시점의 핵심 사실은 이미 두 가지다.
+
+1. `POST_ONLY` 는 baseline 탈락
+2. `IOC` 도 baseline 탈락
+
+그런데 이 두 탈락을 자세히 읽어보면,
+문제의 중심은 "어떤 주문 타입이 더 좋으냐"가 아니다.
+
+실제 중심은 아래다.
+
+- BUILD gate 가 무엇을 허용하고 무엇을 막는지
+- BUILD 직전 market-data authority 를 무엇으로 둘지
+- sizing authority 가 실제로 depth 신호를 먹고 있는지
+
+즉, 지금 batch 의 질문은:
+
+- `POST_ONLY` 대신 `IOC`를 더 다듬을까
+
+가 아니라
+
+- 왜 BUILD가 no-fill 또는 one-leg를 스스로 만들어내는가
+- 그걸 gate/data/sizing 층에서 어떻게 다시 자를 것인가
+
+다.
+
+### 2. `spread / timing gate family`
+
+이 family 는 지금 BUILD 단계에서 가장 헷갈리기 쉬운 층이다.
+
+겉으로 보면:
+
+- spread threshold 를 보고
+- timing 을 보다가
+- 좋을 때 들어가는 로직처럼 보인다
+
+하지만 donor 코드 읽기로 보면 실제 성격은 더 애매하다.
+
+#### donor code reading
+
+1. `_check_spread_profitability()` 는 이름과 달리 코드 주석상 profitability filter 보다 sanity check에 가깝다.
+2. `_wait_for_optimal_entry()` 는 threshold 미달이어도 timeout 후 진입한다.
+
+이 두 가지를 합치면 현재 gate semantics 는 이렇게 읽힌다.
+
+- "정말 수익성 있는 entry만 통과시킨다"
+  보다는
+- "조금 기다려보다가, 끝까지 안 오면 결국 entry를 release한다"
+
+에 가깝다.
+
+#### 왜 이게 중요한가
+
+이 차이는 단순한 용어 문제가 아니다.
+
+- profitability gate 라고 믿으면
+  - threshold 수치를 미세하게 조정하는 쪽으로 가게 된다
+- entry-release gate 라고 보면
+  - timeout 정책
+  - advisory vs hard block
+  - WS/depth 결합 판단
+  같은 더 구조적인 문제로 넘어가게 된다
+
+즉, 지금 `spread/timing`은 "몇 bps가 맞나"를 테스트하기 전에
+"이 gate가 무슨 역할을 하는가"부터 다시 정의해야 한다.
+
+#### 현재 결론
+
+- spread/timing family 는 `reject`가 아니라 `keep but retune`
+- 다만 retune의 초점은 숫자 미세조정이 아니라 gate semantics 재정의다
+
+### 3. `POST_ONLY`가 왜 탈락했는가
+
+`POST_ONLY`는 개념상 나쁜 주문 방식이 아니다.
+
+좋게 보면:
+
+- 비용 구조가 예쁘고
+- maker 성격이 강하고
+- 장기 economics 관점에서 매력 있어 보인다
+
+하지만 지금 `1DEX`의 phase는 economics phase가 아니다.
+지금은 BUILD viability phase다.
+
+#### 실전 결과
 
 - `min-spread-bps 6` -> skip
 - `min-spread-bps 0` -> BUILD 시도 but 양 다리 no fill
 
-판정:
+#### 해석
+
+- 두 다리 모두 no fill이면 BUILD 자체가 시작되지 못했다
+- 즉 이 로직은 "좋은 진입"이 아니라 "진입 부재"를 만들었다
+- 그래서 현재 문맥에서 `POST_ONLY`는
+  - 비용 최적화 후보가 아니라
+  - no-fill source 다
+
+#### 현재 결론
 
 - `POST_ONLY = reject as current live baseline entry mode`
 
-이유:
+### 4. `IOC`가 왜 탈락했는가
 
-- 두 다리 모두 no fill 이면 BUILD 자체가 시작되지 못한다
-- 즉 이 로직은 `entry viability`를 만들지 못한다
-- baseline 은 최소한 진입을 만들어야 하는데, 현재 POST_ONLY 는 그 문턱조차 못 넘는다
-- 따라서 `POST_ONLY` 는 더 이상 baseline 후보가 아니다
+`IOC`는 `POST_ONLY` 다음 후보처럼 보이기 쉽다.
 
-### `IOC`
+그 이유는 단순하다.
 
-의미:
+- `POST_ONLY`보다 체결 가능성이 높아 보이기 때문이다
 
-- Immediate-Or-Cancel
-- 즉시 체결 가능한 만큼만 체결하고, 나머지는 바로 취소한다
+하지만 실전은 더 까다롭다.
 
-실전 결과:
+#### 실전 결과
 
-- real run 1:
-  - `ETH fill / SOL no fill`
-- real run 2:
-  - `ETH fill / SOL no fill`
+- real run 1: `ETH fill / SOL no fill`
+- real run 2: `ETH fill / SOL no fill`
 - 두 번 다 one-leg fill 재현
 - 사후 포지션은 ETH/SOL 모두 `0`
 
-판정:
-
-- `IOC = reject as current live baseline entry mode`
-
-이유 분석:
+#### 핵심 해석
 
 1. entry timing이 좋아서 들어간 게 아니라 timeout 후 진입했다
 2. `BookDepth` 데이터가 실전에서 실제로 안 붙어 있어 slippage/sizing gate가 비활성에 가깝다
-3. IOC는 특성상 유동성 비대칭이 있으면 한쪽만 체결되고 나머지는 취소될 수 있다
+3. IOC는 유동성 비대칭이 있으면 한쪽만 체결되고 다른 쪽은 취소될 수 있다
 4. 현재 build gate는 paired fill viability를 충분히 선별하지 못한다
-5. 그래서 문제는 `UNWIND`만이 아니라, BUILD 단계가 스스로 one-leg risk를 만들어낸다는 점이다
 
 즉:
 
-- `POST_ONLY`보다 진입성은 낫다
-- 하지만 현재 상태로는 `unsafe`
+- `IOC`는 진입성은 높였지만
+- BUILD가 건강한 paired fill 을 만들었다고 보기는 어렵다
+- 오히려 BUILD 단계가 스스로 one-leg risk를 만들어냈다
 
-### WS / REST
+#### 현재 결론
 
-현재 읽기:
+- `IOC = reject as current live baseline entry mode`
 
-- read-only mainnet sanity 자체는 성공했다
-- 하지만 실전 entry path에선 `REST-heavy` 경향이 여전히 강하다
-- `WS connected` 와 `operationally integrated` 는 다르다
+### 5. `websocket-first BBO / BookDepth family`
 
-핵심 해석:
+이 family 를 지금 `compare-next` 1순위로 두는 이유는
+"WS가 멋져 보여서"가 아니다.
 
-- WS를 쓴다고 해도 build paired fill 문제를 자동으로 해결해주지 않는다
-- `BookDepth`와 paired viability gate가 실제로 살아 있어야 의미가 있다
+핵심은 authority 문제다.
 
-### BUILD gate semantics
+#### donor code reading
 
-donor code 기준 현재 BUILD gate에서 보이는 핵심은 아래다.
+1. `estimate_slippage()` 는 BookDepth handler 가 없으면 `999999`를 반환한다
+2. 그런데 sizing 경로에서는 `No BookDepth data`여도 target quantity 로 계속 진행한다
 
-1. `_check_spread_profitability()` 는 코드 주석상 profitability filter 가 아니라 sanity check 다.
-2. `_wait_for_optimal_entry()` 는 threshold 미달이어도 timeout 후 진입한다.
-3. `estimate_slippage()` 는 BookDepth handler 가 없으면 `999999`를 반환한다.
-4. 하지만 sizing 경로에서는 `No BookDepth data`일 때도 target quantity 로 계속 진행하는 분기가 있다.
+이게 뜻하는 바는 명확하다.
+
+- BookDepth는 코드 표면상 중요하다고 선언되어 있지만
+- 실제 BUILD release / sizing authority 에서는 아직 hard blocker가 아니다
+
+#### 왜 이게 중요한가
+
+지금 `1DEX`는 order mode를 더 바꾸기 전에
+아래를 먼저 정해야 한다.
+
+- BBO를 정말 WS primary로 올릴 것인가
+- BookDepth가 없으면 BUILD를 멈출 것인가
+- BookDepth가 있으면 sizing/viability에 실제로 반영되는가
+
+즉 이 family 는
+"실시간 데이터 써보자"가 아니라
+"현재 BUILD authority를 다시 세우자"는 family 다.
+
+#### 현재 결론
+
+- `websocket-first BBO / BookDepth family = keep / compare-next`
+- 지금 배치에서 가장 먼저 비교할 build family다
+
+### 6. `per-leg pricing-mode family`
+
+이 family 는 이름만 보면 그럴듯해서
+바로 다음 핵심 해답처럼 보일 수 있다.
+
+하지만 지금은 아니다.
+
+이유는 간단하다.
+
+- 아직 gate semantics 도 덜 정리됐다
+- BookDepth availability도 blocker인지 아닌지 확정 안 됐다
+- market-data authority 도 WS 쪽으로 충분히 올라가지 않았다
+
+이 상태에서 leg별 pricing mode를 만지면
+문제를 더 미세한 층으로 내려서 착시를 만들 수 있다.
+
+그래서 현재 읽기는:
+
+- 이 family는 버릴 후보는 아니다
+- 하지만 지금 바로 first compare-next 후보도 아니다
+- 먼저 `spread/timing`
+- 그 다음 `websocket-first BBO / BookDepth`
+- 그 다음에야 들어갈 후보다
+
+## UNWIND Group Insights
+
+### 1. 왜 지금 상세 분량은 BUILD보다 적은가
+
+`UNWIND`는 여전히 더 위험한 영역이다.
+이건 안 바뀐다.
+
+하지만 이번 batch 에서 `UNWIND`보다 `BUILD`를 먼저 길게 적는 이유는:
+
+- 현재 비교 후보 3개가 전부 BUILD 층에 있고
+- 지금 탈락한 것도 `POST_ONLY`, `IOC`라는 BUILD entry mode 들이며
+- donor 코드에서 새로 확인된 blocker도 `spread/timing`, `timeout`, `No BookDepth data` 쪽이기 때문이다
 
 즉:
 
-- 현재 BUILD blocker 는 "spread threshold 수치" 하나가 아니다
-- `spread`, `timing`, `BookDepth availability`가 한 덩어리로 섞여 있다
-- 이걸 분리하지 않으면 다음 entry mode를 바꿔도 같은 실패를 반복할 가능성이 높다
+- `UNWIND`가 덜 중요해서가 아니다
+- 지금 batch 의 실질적인 선택지가 BUILD 쪽이라서 그렇다
 
-### Current BUILD-first queue
+### 2. 그래도 BUILD 해석에서 UNWIND가 왜 계속 따라다니는가
 
-현재 배치의 실행 순서는 이렇게 읽는 게 맞다.
+이유는 하나다.
 
-1. `spread / timing gate family` 재판정
-2. `websocket-first BBO / BookDepth family` compare-next
-3. 그 다음에야 `per-leg pricing-mode family`
+- one-leg fill 을 BUILD 성공으로 보면 안 되기 때문이다
 
-`UNWIND`는 여전히 큰 리스크이지만,
-현재 batch 에서는 BUILD gate와 market-data authority 를 먼저 다시 자르는 쪽이 맞다.
+즉, 지금 BUILD 문서에서 `UNWIND`가 계속 언급되는 것은
+우리가 곧바로 UNWIND batch 로 간다는 뜻만은 아니다.
 
-## Current takeaway
+오히려 뜻은 이렇다.
 
-- `POST_ONLY`는 예쁘지만 체결 안 나와서 탈락
-- `IOC`는 진입은 되지만 BUILD 단계에서 one-leg fill을 반복적으로 만들어 탈락
-- 지금 핵심은 새로운 entry mode를 더 파는 게 아니라
-  - `paired fill viability`
-  - `UNWIND / close / flatness`
-  - `WS / BookDepth 실전 연결성`
-  이 세 가지를 다시 짜는 것이다
+- BUILD는 자기 결과를 스스로 성공이라고 선언할 수 없다
+- one-leg / residual / hedge fail 이 나오면
+  - 그 순간부터 UNWIND/flatness contract 가 판정을 가져간다
+
+그래서 현재 `UNWIND`의 역할은:
+
+- 이번 batch 의 상세 비교 주인공은 아니지만
+- BUILD 해석의 실패 판정 기준을 계속 제공하는 것
+
+이다.
+
+## Cross-group takeaway
+
+지금 `1DEX`에서 핵심은 새로운 entry mode를 더 파는 것이 아니다.
+
+지금 핵심은:
+
+- `spread/timing`이 실제로 무슨 gate인지 다시 정의하고
+- `BookDepth unavailable`를 warning으로 둘지 blocker로 올릴지 정하고
+- WS/BBO/BookDepth가 진짜 authority인지 확인하고
+- 그 다음에야 per-leg pricing으로 내려가는 것이다
+
+짧게 말하면:
+
+- `POST_ONLY`는 no-fill로 탈락
+- `IOC`는 one-leg로 탈락
+- 다음은 order mode가 아니라 BUILD semantics를 다시 자르는 단계다

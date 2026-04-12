@@ -16,20 +16,34 @@
 - 의미:
   - 즉시 체결되지 않도록 resting order 로 올리려는 주문 방식
   - 보통 maker 쪽을 노리는 limit-style 주문으로 이해하면 된다
+- 왜 헷갈리나:
+  - 이름만 보면 "수수료가 싸고 예쁜 주문 방식"처럼 보이기 쉽다
+  - 하지만 실제 문제는 비용이 아니라 "체결이 되느냐"다
 - 우리 문맥:
   - entry fee 를 줄이기 위해 BUILD 에서 썼다
   - 하지만 real run 에서는 `min-spread-bps 0`이어도 no fill 이 나왔다
   - 그래서 현재 live baseline entry 로는 부적합하다고 본다
+- 실전에서 이렇게 읽는다:
+  - `POST_ONLY`는 "더 고급" 주문이 아니라
+  - "체결이 안 나와도 괜찮을 때만 쓸 수 있는" 주문이다
+  - 지금 `1DEX`에서는 BUILD 자체가 시작되어야 하므로, no fill이 반복되면 장점보다 단점이 더 크다
 
 ## IOC
 
 - 의미:
   - Immediate-Or-Cancel
   - 즉시 체결 가능한 만큼만 체결하고, 나머지는 취소하는 주문 방식
+- 왜 헷갈리나:
+  - `POST_ONLY`가 안 되면 그다음 정답처럼 보이기 쉽다
+  - 하지만 "체결이 더 잘 된다"와 "pair가 건강하게 체결된다"는 다른 문제다
 - 우리 문맥:
   - POST_ONLY 보다 체결 가능성은 높고, 수수료는 더 불리할 수 있다
   - 하지만 현재 live run 에서는 BUILD 단계에서 one-leg fill 을 반복적으로 만들었다
   - 그래서 현재 baseline entry mode 로는 `reject` 상태다
+- 실전에서 이렇게 읽는다:
+  - `IOC`는 진입을 억지로 만들 수는 있어도
+  - paired fill 을 보장하지는 않는다
+  - 그래서 지금 `1DEX`에서는 "POST_ONLY 다음 후보"가 아니라 "이미 탈락한 현재 entry mode"로 읽는다
 
 ## maker-first
 
@@ -68,40 +82,177 @@
 
 - 의미:
   - 현재 spread 가 기준 이상일 때만 진입하게 막는 필터
+- 왜 헷갈리나:
+  - 이름만 보면 수익성 계산기처럼 들린다
+  - 하지만 donor 코드 주석상 현재 구현은 strict profitability filter 보다 sanity check 성격이 더 강하다
 - 우리 문맥:
   - 원래는 PnL 보호용
   - 지금은 진입 자체를 막는지 검증 대상
   - `6bps` 에서는 skip, `0bps` 에서는 BUILD 시도까지 갔음
+- 실전에서 이렇게 읽는다:
+  - 지금 논점은 "몇 bps가 맞는가"보다
+  - "이 필터가 수익성 판단인지, 진입 허가 장치인지"를 다시 구분하는 것이다
+
+## profitability filter
+
+- 의미:
+  - "이 진입이 경제적으로 말이 되느냐"를 먼저 거르는 필터
+- 왜 헷갈리나:
+  - spread filter와 자주 섞여 쓰이기 때문이다
+- 우리 문맥:
+  - 현재 donor 구현의 `_check_spread_profitability()` 이름은 profitability filter처럼 보이지만
+  - 실제 주석은 sanity check에 더 가깝다
+- 실전에서 이렇게 읽는다:
+  - profitability filter라면
+  - "수익이 안 나면 진입 금지"가 중심이어야 한다
+  - 지금 `1DEX`는 아직 그 단계가 아니라 infra/build viability 단계다
+
+## sanity check
+
+- 의미:
+  - 수익 계산을 하려는 것이 아니라
+  - 데이터가 너무 이상하거나 잘못된 상태는 아닌지 보는 최소 정상성 체크
+- 왜 헷갈리나:
+  - 이름이 약해 보여서 중요하지 않은 보조 로직처럼 느껴질 수 있다
+  - 하지만 잘못된 sanity check는 BUILD를 쓸데없이 막거나 반대로 이상한 진입을 열 수 있다
+- 우리 문맥:
+  - `_check_spread_profitability()`는 현재 profitability hard gate보다 sanity check로 읽는 편이 맞다
+- 실전에서 이렇게 읽는다:
+  - "이 조건이면 돈 버나?"가 아니라
+  - "이 정도면 진입 로직을 돌려도 될 만큼 데이터가 정상인가?"를 본다
+
+## entry-release gate
+
+- 의미:
+  - 진입을 완전히 결정하는 엔진이 아니라
+  - 지금 entry를 풀어줄지 보류할지를 결정하는 허가 장치
+- 왜 헷갈리나:
+  - filter, timing, optimal entry 같은 이름과 섞이면
+  - 마치 이 gate가 곧 수익성 증명인 것처럼 보이기 쉽다
+- 우리 문맥:
+  - `spread`, `timing`, `BookDepth availability`는 지금 모두 BUILD release gate 후보들이다
+- 실전에서 이렇게 읽는다:
+  - "좋은 진입"을 찾는 게 아니라
+  - "지금 들어가면 안 되는 상황을 막는가"를 먼저 본다
 
 ## spread / timing gate family
 
 - 의미:
   - spread threshold 와 entry timing wait 를 함께 묶은 BUILD front gate family
+- 왜 헷갈리나:
+  - spread는 economics처럼 들리고
+  - timing은 alpha처럼 들리고
+  - 실제 코드는 timeout 진입도 허용해서 둘이 서로 다른 역할이 섞여 있다
 - 우리 문맥:
   - `_wait_for_optimal_entry()`
   - `_check_spread_profitability()`
   - `--min-spread-bps`
   를 같이 본다
   - 원래는 economics gate 였지만, 지금은 entry viability gate 역할까지 같이 하고 있다
+- 실전에서 이렇게 읽는다:
+  - 이 family의 질문은 "몇 bps가 맞나?" 하나가 아니다
+  - 실제 질문은:
+  - 이 gate가 hard block 인가
+  - soft advisory 인가
+  - timeout 후 진입을 허용하는 release 장치인가
+  - WS/BBO/BookDepth를 같이 보는 composite gate인가
+
+## timeout entry
+
+- 의미:
+  - 일정 시간 동안 더 좋은 entry를 기다리다가
+  - 끝까지 안 오면 현재 조건으로 그냥 들어가는 것
+- 왜 헷갈리나:
+  - 함수 이름에 `optimal`이 들어가면
+  - timeout 후 진입도 마치 "좋은 타이밍을 찾은 결과"처럼 읽히기 쉽다
+- 우리 문맥:
+  - 현재 donor 코드는 threshold 미달이어도 timeout 후 진입을 허용한다
+- 실전에서 이렇게 읽는다:
+  - timeout entry는 optimality proof가 아니다
+  - 오히려 gate가 끝내 entry를 풀어버렸다는 뜻에 가깝다
 
 ## websocket-first BBO / BookDepth family
 
 - 의미:
   - REST 조회보다 WebSocket 기반 BBO / BookDepth 를 먼저 권위 경로로 삼는 build family
+- 왜 헷갈리나:
+  - "WS를 붙였다"와 "WS가 진짜 판단 기준이 됐다"는 전혀 다른 문제다
+  - BBO와 BookDepth도 이름은 같이 나오지만 역할이 다르다
 - 우리 문맥:
   - order mode 비교보다 먼저 봐야 할 next candidate family
   - 목적은 더 좋은 주문 타입 찾기가 아니라
   - build 직전 paired fill viability 와 sizing authority 를 올리는 것이다
+- 실전에서 이렇게 읽는다:
+  - BBO는 "지금 앞 가격이 얼마냐"
+  - BookDepth는 "그 가격 근처에 실제로 얼마나 두께가 있느냐"
+  - 즉, 이 family는 quote 보기용이 아니라
+  - BUILD를 실제 체결 가능성 기준으로 다시 자르는 family다
+
+## paired fill viability
+
+- 의미:
+  - ETH와 SOL 두 다리가 함께 건강하게 체결될 가능성
+- 왜 헷갈리나:
+  - 한쪽 체결만 보고 "진입은 됐다"고 착각하기 쉽기 때문이다
+- 우리 문맥:
+  - `IOC`는 진입성은 있었지만 paired fill viability가 낮아서 탈락했다
+- 실전에서 이렇게 읽는다:
+  - 한 leg만 들어가면 성공이 아니라
+  - BUILD가 스스로 one-leg risk를 만든 것이다
+
+## market-data authority
+
+- 의미:
+  - 봇이 "지금 시장 상태를 뭘 기준으로 믿을지" 정하는 권위 경로
+- 왜 헷갈리나:
+  - BBO, BookDepth, REST fallback, cached state가 한꺼번에 섞여 있기 때문이다
+- 우리 문맥:
+  - 현재 쟁점은 order mode보다 먼저 market-data authority를 WS 쪽으로 올릴 수 있느냐다
+- 실전에서 이렇게 읽는다:
+  - 단순히 데이터가 있느냐가 아니라
+  - BUILD release와 sizing 판단에 실제로 쓰이느냐를 본다
+
+## sizing authority
+
+- 의미:
+  - 주문 수량을 얼마로 둘지 결정할 때 무엇을 믿을지에 대한 기준
+- 왜 헷갈리나:
+  - notional 계산, min size, slippage, BookDepth가 서로 다른 층인데 한 함수 안에서 섞일 수 있다
+- 우리 문맥:
+  - `calculate_order_size_with_slippage()`는 sizing authority의 핵심 표면이다
+- 실전에서 이렇게 읽는다:
+  - 수량이 "계산되었다"보다
+  - "그 수량이 실제 depth 기준으로 감당 가능한가"가 더 중요하다
+
+## build blocker
+
+- 의미:
+  - BUILD를 진행하면 안 될 정도로 핵심적인 장애 상태
+- 왜 헷갈리나:
+  - warning과 blocker를 로그에서 비슷하게 처리하면
+  - 사람은 위험을 봤다고 생각하지만 로직은 계속 진행할 수 있다
+- 우리 문맥:
+  - `No BookDepth data`를 단순 warning으로 둘지
+  - hard blocker로 승격할지가 현재 쟁점이다
+- 실전에서 이렇게 읽는다:
+  - blocker는 "나중에 고치자"가 아니라
+  - "이 상태면 BUILD를 열면 안 된다"는 뜻이다
 
 ## per-leg pricing-mode family
 
 - 의미:
   - ETH 와 SOL 두 leg 를 같은 가격모드로 묶지 않고 leg 별로 다르게 주는 family
+- 왜 헷갈리나:
+  - 지금 문제의 중심처럼 보일 수 있지만
+  - 실제로는 WS/BBO/BookDepth 정리 전에는 아직 spec-only에 가깝다
 - 우리 문맥:
   - `eth_mode`, `sol_mode`
   - `bbo_minus_1`, `bbo_plus_1`, `bbo`, `aggressive`, `market`
   를 조합하는 설계 family 다
   - 아직은 `dormant / spec-only` 상태다
+- 실전에서 이렇게 읽는다:
+  - 이 family는 "주문을 얼마나 공격적으로 둘지"의 미세조정 층이다
+  - 지금은 gate/data authority가 먼저고, pricing-mode는 그 다음이다
 
 ## flatness
 
@@ -186,6 +337,19 @@
   - 미시 최적화용 목록이 아니다
   - 현재 로직을 비교해서 `keep / reject / extract` 를 빠르게 결정하는 도구다
 
+## compare-next
+
+- 의미:
+  - 지금 당장 baseline 후보로 승격하지는 않지만
+  - 다음 비교/검토 순서로 올려둔 후보
+- 왜 헷갈리나:
+  - keep과 비슷해 보이지만 의미가 다르다
+- 우리 문맥:
+  - `websocket-first BBO / BookDepth family`는 keep이면서 compare-next다
+  - 즉 버리지는 않지만 아직 baseline으로 확정한 것도 아니다
+- 실전에서 이렇게 읽는다:
+  - "다음 타자"이지 "이미 통과한 후보"가 아니다
+
 ## data gap snapshot
 
 - 의미:
@@ -221,6 +385,26 @@
   - 연결된 데이터를 실제 decision / truth / risk path 에 쓰고 있다는 뜻
 - 우리 문맥:
   - 그냥 연결됐다는 것보다 훨씬 강한 상태다
+
+## risk priority
+
+- 의미:
+  - 어떤 failure가 더 위험한지의 우선순위
+- 우리 문맥:
+  - 여전히 `UNWIND` 쪽 리스크가 더 크다
+- 실전에서 이렇게 읽는다:
+  - "더 위험하다"와 "이번 배치에서 먼저 테스트한다"는 같은 말이 아니다
+
+## batch execution order
+
+- 의미:
+  - 이번 배치에서 실제로 어떤 순서로 파고들지 정한 작업 순서
+- 우리 문맥:
+  - 현재는 `BUILD-first`
+  - 즉 `spread/timing -> websocket-first BBO/BookDepth -> per-leg pricing -> 그 다음 UNWIND contract`
+- 실전에서 이렇게 읽는다:
+  - risk priority와 batch order를 섞어 읽으면 계속 헷갈린다
+  - 이번 `1DEX` 문서에서는 둘을 분리해서 본다
 
 ## forced liquidation / forced flatten
 
