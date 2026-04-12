@@ -95,8 +95,8 @@ canonical steering rule:
 
 현재 batch execution order:
 
-1. `spread / timing gate family`
-2. `websocket-first BBO / BookDepth family`
+1. `websocket-first BBO / BookDepth family`
+2. `spread / timing gate family`
 3. `per-leg pricing-mode family`
 4. 그 다음 `UNWIND / one-leg baseline contract` 마감
 
@@ -211,79 +211,67 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
 
 남은 `3개`는 아래다.
 
-1. `spread / timing gate family`
+1. `websocket-first BBO / BookDepth family`
+   - 상태:
+     - `keep / active-first`
+   - 의미:
+     - paired fill viability 와 sizing authority 를 올릴 가장 유력한 후보
+   - 현재 읽기:
+      - WS transport 자체보다 `position_change.amount` 해석과 phase handoff가 더 큰 문제였다
+      - `BBO / BookDepth / fill`은 실제로 수신되므로, 지금은 "WS를 켠다"보다 "WS에서 어떤 stream을 truth로 쓸지 고정"하는 단계다
+   - 세부 실행계획:
+     1. `WS truth split`
+        - 목적:
+          - `position_change`를 진단용으로 내리고 `fill`을 수량 truth로 고정
+        - 왜 지금 하나:
+          - 지금 가장 큰 오판이 `position_change.amount`를 실제 포지션 수량처럼 읽은 것이기 때문이다
+        - 확인할 것:
+          - `best_bid_offer`
+          - `book_depth`
+          - `fill`
+          - `position_change`
+          중 어떤 stream이 어떤 truth를 소유하는지
+     2. `phase handoff test`
+        - 목적:
+          - BUILD/UNWIND handoff가 stale zero 또는 stale non-zero에 끌려가지 않게 고정
+        - 왜 지금 하나:
+          - 지금 phase transition이 order result, fill WS, position_change raw signal 사이에서 꼬이고 있다
+        - 확인할 것:
+          - fill이 늦게 와도 재주문 안 하는지
+          - close 후 stale WS 값 때문에 false stop이 안 나는지
+     3. `3-cycle smoke`
+        - 목적:
+          - WS-centered path가 우연히 한 번이 아니라 최소한 짧은 배치에서 버티는지 확인
+        - 왜 지금 하나:
+          - source map 항목을 "실제로 개선 확인됨" 단계로 올리려면 반복 evidence가 필요하다
+        - 확인할 것:
+          - `WEBSOCKET_AVAILABLE=True`
+          - `No BookDepth data` 없음
+          - `fill` 수신
+          - false residual stop 없음
+          - 실제 포지션 `0/0`
+     4. `10-cycle stability`
+        - 목적:
+          - 3-cycle smoke 이후에도 WS path가 반복적으로 버티는지 확인
+        - 왜 지금 하나:
+          - 진짜 baseline 후보는 반복 런에서 무너지지 않아야 하기 때문이다
+        - 확인할 것:
+          - 실제 포지션 `0/0` 반복
+          - one-leg 재발 빈도
+          - rate-limit성 REST 과호출 없음
+
+2. `spread / timing gate family`
    - 상태:
      - `keep but retune`
    - 의미:
      - 진입 수익성 필터이면서 동시에 front-line entry blocker
    - 현재 읽기:
-     - hard profitability threshold 하나로 BUILD viability 를 대표시키면 안 된다
-      - donor 코드상 `_check_spread_profitability()` 는 profitability filter 가 아니라 sanity check 로 적혀 있다
-      - `_wait_for_optimal_entry()` 는 timeout 후에도 진입하므로, 현재는 "optimal entry"보다 "timeout-based entry release"에 가깝다
+      - 이 항목은 중요하지만, WS truth/handoff가 안 잠긴 상태에서 먼저 파면 판단이 흐려진다
+      - 따라서 지금은 2순위다
    - 세부 실행계획:
      1. `semantic split test`
-        - 목적:
-          - `_check_spread_profitability()` 를 profitability gate 로 읽을지 sanity gate 로 읽을지 먼저 고정
-        - 왜 지금 하나:
-          - 이 정의가 안 서면 threshold 숫자 조정이 전부 헛수고가 될 수 있다
-        - 확인할 것:
-          - 현재 코드/주석/실전 로그 중 무엇이 권위인지
-          - `min-spread-bps` 가 실제로 "수익성 보장"을 뜻하는지 아닌지
      2. `timeout path test`
-        - 목적:
-          - `_wait_for_optimal_entry()` 의 timeout 후 진입을 "optimal"과 분리해서 읽기
-        - 왜 지금 하나:
-          - timeout entry를 좋은 진입으로 오해하면 BUILD 판정이 왜곡된다
-        - 확인할 것:
-          - timeout 진입은 hard release 인지
-          - advisory release 인지
-          - 별도 reason code로 분리해야 하는지
      3. `gate policy decision`
-        - 목적:
-          - `hard block / soft advisory / WS-depth composite gate` 셋 중 하나로 현재 정책을 고정
-        - 왜 지금 하나:
-          - 이 결정이 있어야 다음 BUILD 실험이 같은 애매한 gate semantics를 반복하지 않는다
-
-2. `websocket-first BBO / BookDepth family`
-   - 상태:
-     - `keep / compare-next`
-   - 의미:
-     - paired fill viability 와 sizing authority 를 올릴 가장 유력한 후보
-   - 현재 읽기:
-      - order mode 이전에 market-data authority 를 올리는 family 로 본다
-      - donor 코드상 `No BookDepth data`일 때도 target quantity 로 진행하는 경로가 있어, WS 연결보다 BookDepth gate 강제 여부가 더 핵심이다
-   - 세부 실행계획:
-     1. `BBO authority test`
-        - 목적:
-          - BUILD 시점 가격 판단이 실제로 WS-primary 인지, 여전히 query-heavy 인지 구분
-        - 왜 지금 하나:
-          - BBO authority 가 약하면 뒤의 pricing-mode 비교가 전부 흔들린다
-        - 확인할 것:
-          - `fetch_bbo_prices()` 와 WS handler 중 어느 쪽이 실제 decision authority 인지
-          - fallback 이 주 경로를 먹어버리는지
-     2. `BookDepth availability test`
-        - 목적:
-          - `No BookDepth data`가 일시적 warning인지 구조적 blocker인지 판정
-        - 왜 지금 하나:
-          - 현재 실전 실패 로그에서 가장 직접적으로 surfaced 된 gap이기 때문이다
-        - 확인할 것:
-          - BookDepth handler 부재 빈도
-          - WS 연결 상태와 BookDepth usable 상태가 실제로 같은지
-     3. `sizing authority test`
-        - 목적:
-          - sizing path 가 실제로 depth 신호를 먹는지 확인
-        - 왜 지금 하나:
-          - 지금은 depth가 없어도 target quantity 로 진행하는 분기가 있어 sizing authority 가 약하다
-        - 확인할 것:
-          - depth 부재 시 BUILD stop
-          - 축소 진입
-          - 그냥 진행
-          셋 중 무엇을 baseline 정책으로 둘지
-     4. `blocker promotion decision`
-        - 목적:
-          - `No BookDepth data`를 hard blocker로 승격할지 최종 결정
-        - 왜 지금 하나:
-          - 이 결정이 없으면 WS-first family 비교 자체가 문서상 주장으로만 남는다
 
 3. `per-leg pricing-mode family`
    - 상태:
@@ -323,12 +311,27 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
 
 이 batch 의 목표는 새 order mode를 더 찾는 것이 아니다.
 
-- `spread`를 profitability gate가 아니라 sanity/entry-release gate로 다시 고정
-- `timeout entry`를 optimality proof로 간주하지 않기
-- `BookDepth unavailable` 상태에서는 BUILD가 그냥 진행되지 않도록 contract를 더 엄격히 고정
+- `websocket-first BBO / BookDepth family`를 먼저 정상화
+- `fill` 기반 수량 truth를 고정
+- `position_change`를 진단용 raw signal로 내리기
+- phase handoff를 정리해서 false residual stop을 줄이기
 
 즉 이번 batch 는 `entry mode 비교`가 아니라
-`BUILD gate / market-data authority / sizing authority`를 다시 자르는 작업이다.
+`WS truth / market-data authority / phase handoff`를 다시 자르는 작업이다.
+
+### Current WS-first acceptance target
+
+이 항목을 source map에서 하나의 완료된 항목으로 올리려면 아래가 필요하다.
+
+1. `3-cycle smoke`
+   - WS 연결 유지
+   - `BookDepth` usable
+   - `fill` 수신
+   - false residual stop 없음
+   - actual position `0/0`
+2. `10-cycle stability`
+   - 위 조건 반복 유지
+   - REST 과호출로 인한 rate limit 징후 없음
 
 ### Why the 3 families must not be treated as one bundle
 
