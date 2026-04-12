@@ -230,6 +230,110 @@
 - `websocket-first BBO / BookDepth family = keep / compare-next`
 - 지금 배치에서 가장 먼저 비교할 build family다
 
+### 5.5. WS 꺼진 런 복기
+
+이건 반드시 남겨야 하는 복기다.
+
+#### 왜 WS가 꺼졌나
+
+- 원인은 간단했다.
+- `sortedcontainers`가 없어
+  - Nado WebSocket 모듈 import가 실패했고
+  - 런타임이 자동으로 `REST fallback`으로 내려갔다
+
+실제 표시:
+
+- `Import failed: No module named 'sortedcontainers'`
+- `WEBSOCKET_AVAILABLE set to False`
+
+#### WS가 꺼진 상태에서 무슨 일이 있었나
+
+- `ENTRY`는 `optimal_spread`가 아니라 `timeout`으로 열렸다
+- `BookDepth`가 없었는데도
+  - `No BookDepth data ... using target quantity`
+  로 계속 진입을 시도했다
+- 초기 양다리 주문은 둘 다 timeout/no-fill
+- 그 뒤 retry로 들어갔고
+- retry에서는 ETH만 fill, SOL은 계속 실패했다
+
+즉 이 런은 이렇게 읽는다.
+
+- WS가 꺼져서
+- BookDepth가 실제 gate 역할을 못 했고
+- BUILD가 건강한 paired fill 대신
+- timeout/no-fill/retry/one-leg 쪽으로 흘렀다
+
+#### 이 런이 남긴 결론
+
+- 이 런은 credential 문제로 실패한 게 아니다
+- `WS 미활성 + BookDepth 부재 + timeout release`가 겹쳐서
+  BUILD가 약한 상태로 열린 것이다
+- 따라서 `WS / BookDepth`를 살리기 전 로직 비교는 의미가 약하다
+
+### 5.6. WS 켠 런 복기
+
+#### 무엇이 달라졌나
+
+- `sortedcontainers` 설치 후
+  - `WEBSOCKET_AVAILABLE = True`
+  - ETH/SOL 둘 다 `CONNECTED`
+  - `book_depth` subscribe도 실제 메시지를 받았다
+
+#### WS 켠 뒤 실전에서 무슨 일이 있었나
+
+- 여전히 `ENTRY`는 `timeout`으로 열렸다
+- 하지만 이번엔 `BookDepth`가 살아 있어서
+  - ETH slippage `0.0 bps`
+  - SOL slippage `0.0 bps`
+  로 계산됐다
+- BUILD는 양다리 모두 first try fill
+- UNWIND도 양다리 모두 fill
+
+즉:
+
+- WS를 살리니
+  - BUILD 자체는 이전보다 훨씬 정상적으로 돌아갔다
+- 그래서 `No BookDepth data`는
+  - 로직 문제이기도 하지만
+  - 실제로는 WS 미활성의 영향도 컸던 것으로 읽힌다
+
+### 5.7. 그런데 왜 봇은 멈췄나
+
+이 부분은 어렵게 말할 필요가 없다.
+
+실제 상황은 이거다.
+
+- UNWIND 주문까지는 다 나갔다
+- REST로 다시 조회하면 ETH/SOL 포지션은 둘 다 `0`이었다
+- 그런데 웹소켓 포지션 값은 SOL이 `-1.2`처럼 남아 있다고 봤다
+- 봇은 "포지션이 아직 남아 있을 수 있다"고 보고 멈췄다
+
+즉 지금 문제를 쉬운 말로 쓰면:
+
+- "실제 포지션은 0인데
+  봇 안의 웹소켓 값은 아직 SOL이 남아 있다고 본다"
+
+이다.
+
+#### 중요한 운영 해석
+
+- 이 상황에서 먼저 할 일은 root-cause 분석이 아니다
+- 먼저 실제 포지션이 남았는지 다시 조회하는 것이다
+- 이번에는 read-only 재확인 결과
+  - ETH position `0`
+  - SOL position `0`
+  였다
+- 그래서 이번 건은 "실제 잔여 포지션"이 아니라
+  "웹소켓 포지션 값 해석/동기화 문제" 쪽에 더 가깝다
+
+#### 이 런이 남긴 결론
+
+- WS를 살리면 BUILD/UNWIND fill은 훨씬 좋아진다
+- 하지만 이제 다음 blocker는
+  - `웹소켓 포지션 값과 REST 포지션 값이 안 맞는 문제`
+  - `PNL 상태값 누락`
+  쪽으로 올라왔다
+
 ### 6. `per-leg pricing-mode family`
 
 이 family 는 이름만 보면 그럴듯해서
@@ -310,6 +414,10 @@
 - `POST_ONLY`는 no-fill로 탈락
 - `IOC`는 one-leg로 탈락
 - 다음은 order mode가 아니라 BUILD semantics를 다시 자르는 단계다
+- 그리고 WS를 켠 뒤에는
+  - `No BookDepth data`보다
+  - `웹소켓 포지션 값과 REST 포지션 값이 안 맞는 문제`
+  가 더 큰 실전 blocker로 올라왔다
 
 ## Runbook Link
 
