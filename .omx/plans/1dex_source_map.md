@@ -17,17 +17,140 @@
 - authoritative git ref: `origin/DN_pair_eth_sol_nado`
 - main target file: `hedge/DN_pair_eth_sol_nado.py`
 
+## Historical Best-Version Screening
+
+이번 source map에서는 commit screening의 첫 질문을 바꾼다.
+
+- 잘못된 질문:
+  - "최근 websocket 커밋부터 잡자"
+- 수정된 질문:
+  - "`md / csv / log`에 explicit success record가 남은 best version이 무엇이냐"
+
+screening rule:
+
+1. commit message보다 `md / csv / log` evidence를 우선한다
+2. explicit success record가 있는 commit을 먼저 고른다
+3. 같은 수준이면 그 다음에 최신 쪽을 우선한다
+
+### screened anchor commits: `8`
+
+1. `7e11a6f`
+   - 역할:
+     - subaccount / close order bug fix
+   - 읽기:
+     - necessary infra fix
+     - explicit cycle success record는 약하다
+   - verdict:
+     - `important prerequisite`
+     - `not first anchor`
+
+2. `c4f7c75`
+   - 역할:
+     - emergency unwind / tick-size rounding fix
+   - evidence:
+     - `.omc/plans/emergency-unwind-fix.md`
+     - `.omc/plans/tick-size-rounding-fix.md`
+   - 읽기:
+     - design / repair evidence는 있다
+     - explicit successful cycle record는 약하다
+   - verdict:
+     - `repair milestone`
+     - `not first anchor`
+
+3. `0c93e82`
+   - 역할:
+     - position accumulation 방지용 emergency unwind 강화
+   - 읽기:
+     - close-side safety에는 중요
+     - explicit successful cycle record는 약하다
+   - verdict:
+     - `important safety fix`
+     - `not first anchor`
+
+4. `3b483fe`
+   - supporting documentation:
+     - `23231c6` `docs/tp-precision-fix-summary.md`
+   - explicit success record:
+     - ETH TP order placed
+     - SOL TP order placed
+     - static TP hit
+     - SOL WS precision correction
+   - documented remaining issue:
+     - `WS lag at unwind verification`
+   - verdict:
+     - `provisional best 1DEX version anchor`
+
+5. `9c3be2b`
+   - supporting documentation:
+     - `docs/bug-fixes-summary.md`
+   - evidence:
+     - core logic tests `9 / 9` passing
+     - TP mocks `3 / 3` still broken
+   - 읽기:
+     - test evidence는 좋다
+     - live best-version evidence는 `3b483fe`보다 약하다
+   - verdict:
+     - `supporting guardrail commit`
+     - `not first anchor`
+
+6. `4ff3ae2`
+   - supporting documentation:
+     - `docs/websocket-position-tracking-fix.md`
+   - evidence:
+     - `SOL ~$400 accumulation` incident-response
+     - `23 tests passing`
+   - 읽기:
+     - 중요한 post-mortem / repair batch다
+     - 하지만 baseline anchor라기보다 incident-response history다
+     - 게다가 이 family는 `position_change authority` 가정을 강하게 두는데, 2026-04-12 mainnet read에서는 그 가정을 바로 truth로 쓰기 어렵다
+   - verdict:
+     - `extract lessons`
+     - `not first anchor`
+
+7. `43b36fb`
+   - 역할:
+     - WS fill / retry handling 재작업
+   - 읽기:
+     - useful experimental lane
+     - explicit md/csv success record가 없다
+   - verdict:
+     - `keep as experiment`
+     - `not best-version anchor`
+
+8. `93bdfce`
+   - 역할:
+     - WS startup / build retry handoff hardening
+   - evidence:
+     - unit / bootstrap tests 강화
+     - 2026-04-12 live에서는 `no-fill clean skip` 와 `one-leg -> unwind -> retry re-entry` 문제가 남았다
+   - verdict:
+     - `keep as current experimental head`
+     - `not best-version anchor`
+
+### Current anchor verdict
+
+- provisional best `1DEX` version:
+  - `3b483fe`
+- why:
+  - explicit success record가 있는 가장 강한 commit family
+  - remaining problem도 `BUILD failure general`이 아니라 `unwind verification lag`로 더 좁게 적혀 있다
+- do not anchor on:
+  - `4ff3ae2`
+  - `43b36fb`
+  - `93bdfce`
+  because those are better read as `incident-response / experimental lanes`, not `best known stable version`
+
 ## Scope Count
 
 ### Commit universe
 
-- `1DEX Nado` branch total commits: `63`
+- `1DEX Nado` branch total commits: `65`
 - current mode:
   - commit-by-commit 전수독해가 아니라 cluster-first
 - progress:
-  - commit count identified: `63 / 63`
-  - commit-by-commit reviewed: `0 / 63`
-  - remaining if we ever do full archaeology: `63`
+  - commit count identified: `65 / 65`
+  - commit-by-commit reviewed: `8 / 65`
+  - remaining if we ever do full archaeology: `57`
 
 ### Build-stage source map
 

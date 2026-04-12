@@ -27,6 +27,42 @@ canonical steering rule:
 - `1dex_source_map.md` 는 기준점을 대체하지 않는다
 - source map은 `keep / reject / extract / compare-next` 판정을 plan 에 공급하는 판정판이다
 
+## Historical Anchor Reset
+
+이번 batch에서 first anchor 자체를 수정한다.
+
+- `43b36fb -> 93bdfce`만을 첫 기준점으로 잡는 것은 잘못이었다
+- 이유:
+  - 둘 다 `websocket startup / fill / retry handoff` 개선 배치로는 중요하다
+  - 하지만 `1DEX best known version`이라는 증거는 약하다
+  - 2026-04-12 live에서는
+    - `no-fill clean skip`
+    - `one-leg fill -> emergency unwind -> post-unwind retry 재진입`
+    가 계속 남아 있었다
+
+이제부터 historical screening rule 은 아래다.
+
+1. commit message보다 `md / csv / log` evidence를 먼저 본다
+2. explicit success record가 있는 commit을 먼저 후보화한다
+3. 같은 수준이면 그 다음에 최신 쪽을 우선한다
+
+현재 provisional `1DEX best version anchor`는 아래다.
+
+- primary candidate commit: `3b483fe`
+- supporting success documentation:
+  - `23231c6`의 `docs/tp-precision-fix-summary.md`
+- 이유:
+  - explicit TP order placement success 기록이 있다
+  - explicit static TP trigger success 기록이 있다
+  - SOL WebSocket precision correction이 문서로 남아 있다
+  - 남은 문제도 `BUILD failure`보다 `WS lag at unwind verification`로 더 좁게 적혀 있다
+
+따라서 phase 1 은 이제 아래처럼 읽는다.
+
+- `3b483fe` family를 first anchor로 본다
+- `9c3be2b`, `4ff3ae2`는 safety/incident-response history로 본다
+- `43b36fb`, `93bdfce`는 useful experimental lane이지만 `best version anchor`로는 보지 않는다
+
 ## Core 1DEX View
 
 현재 `1DEX`의 첫 문제는 `PnL`이 아니다.
@@ -71,6 +107,12 @@ canonical steering rule:
 - in progress: `1 / 4`
 - remaining after current batch: `1`
 
+anchor status:
+
+- historical best-version anchor:
+  - status: `complete`
+  - result: `3b483fe (+ 23231c6 documentation)`를 provisional first anchor로 채택
+
 세부:
 
 1. `POST_ONLY verdict`
@@ -95,10 +137,11 @@ canonical steering rule:
 
 현재 batch execution order:
 
-1. `websocket-first BBO / BookDepth family`
-2. `spread / timing gate family`
-3. `per-leg pricing-mode family`
-4. 그 다음 `UNWIND / one-leg baseline contract` 마감
+1. `historical best-version anchor`를 먼저 고정한다
+2. 그 anchor 위에서 `websocket-first BBO / BookDepth family`를 다시 평가한다
+3. 그 다음 `spread / timing gate family`
+4. 그 다음 `per-leg pricing-mode family`
+5. 마지막에 `UNWIND / one-leg baseline contract` 마감
 
 필수 확인 항목:
 
