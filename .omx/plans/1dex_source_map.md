@@ -360,7 +360,7 @@ build-stage entry logic total: `7`
   - BBO 로 tactical pricing
   - BookDepth 로 sizing / paired fill viability / slippage 추정
 - 현재 판정:
-  - `keep / compare-next`
+  - `keep / active-first`
 - 이유:
   - 현재 live blocker 는 단순 spread 값이 아니라 paired fill viability 부족이다
   - 실행 로그에서도 BookDepth data 부재가 직접 드러났다
@@ -369,38 +369,44 @@ build-stage entry logic total: `7`
   - 이 family 가 살아야 `POST_ONLY`/`IOC` 같은 order mode 비교도 의미가 생긴다
   - order mode 보다 먼저, build 직전 market-data authority 를 올리는 family 로 읽는 편이 맞다
 - donor code reading:
-  - `estimate_slippage()` 는 BookDepth handler 가 없으면 `999999`를 반환한다
-  - 하지만 `calculate_order_size_with_slippage()` 쪽에서는 `No BookDepth data`면 target quantity 로 계속 진행한다
-  - 즉 현재 blocker 는 "WS가 없다"보다 "BookDepth 부재가 BUILD stop 조건이 아니다" 쪽이다
+  - `BBO`, `BookDepth`, `fill` stream 은 실제로 수신된다
+  - 반면 `position_change.amount`는 봇 수량 단위와 바로 맞지 않는다
+  - 따라서 현재 blocker 는 "WS transport"보다 "WS 이벤트별 truth ownership"과 "phase handoff" 쪽이다
 - 다음 판정 질문:
   - BBO 를 WS primary / REST fallback 으로 확실히 올릴 수 있는가
   - BookDepth 를 실제 sizing / viability gate 에 연결할 수 있는가
   - live 에서 `No BookDepth data` 상태를 없앨 수 있는가
 - 현재 batch acceptance:
-  - `No BookDepth data`를 단순 warning 이 아니라 BUILD blocker 후보로 승격할지 결정
-  - `get_bbo_handler()` / `get_bookdepth_handler()` 가 없을 때 진입을 계속 허용할지 명시
-  - BookDepth 없는 sizing path를 baseline 에서 허용할지 금지할지 판정
+  - `position_change`를 수량 truth에서 제외
+  - `fill`을 수량 truth로 고정
+  - stale WS 값 때문에 false residual stop이 나지 않게 phase handoff를 고정
+  - `No BookDepth data` 없는 WS-centered 3-cycle smoke 통과
 - 세부 테스트 슬라이스:
-  1. `BBO authority`
+  1. `WS transport`
      - 목적:
-       - WS BBO가 실제 decision authority 인지 확인
+       - `best_bid_offer`, `book_depth`, `fill`이 실제로 들어오는지 확인
      - 왜 하는가:
-       - pricing 판단이 query-heavy면 뒤의 개선이 모두 불안정하기 때문이다
-  2. `BookDepth availability`
+       - transport가 죽은 상태에선 그 뒤 판단이 모두 무의미하다
+  2. `truth split`
      - 목적:
-       - BookDepth 부재가 예외인지 상시 문제인지 분리
+       - `fill` vs `position_change` 중 어느 것이 수량 truth인지 고정
      - 왜 하는가:
-       - 지금 실전에서 직접 surfaced 된 blocker 후보이기 때문이다
-  3. `sizing coupling`
+       - 지금 가장 큰 오판이 `position_change.amount`를 수량처럼 읽은 것이기 때문이다
+  3. `phase handoff`
      - 목적:
-       - depth가 sizing gate에 실제로 연결되는지 확인
+       - order result, fill WS, close verification의 연결을 고정
      - 왜 하는가:
-       - 지금은 depth 부재여도 target quantity로 계속 진행해 authority가 약하다
-  4. `blocker promotion`
+       - 이 부분이 꼬이면 false residual stop과 과잉 retry가 생긴다
+  4. `3-cycle smoke`
      - 목적:
-       - `No BookDepth data`를 hard blocker로 올릴지 최종 판정
+       - 위 1-3이 한 번이 아니라 짧은 배치에서 버티는지 확인
      - 왜 하는가:
-       - 이 결정이 있어야 BUILD semantics가 다시 고정된다
+       - source map 항목을 “실제 개선 확인”으로 올리려면 반복 evidence가 필요하다
+  5. `10-cycle stability`
+     - 목적:
+       - WS path가 baseline 후보로 갈 만한지 확인
+     - 왜 하는가:
+       - 진짜 완료 판정은 단발이 아니라 반복 런 기준이어야 한다
 
 #### donor documents
 
@@ -551,17 +557,19 @@ build-stage entry logic total: `7`
 
 ## Next
 
-1. retune `spread / timing gate family`
-2. compare-next `websocket-first BBO / BookDepth family`
-3. classify whether `No BookDepth data` is a hard BUILD blocker
-4. only after 1-3, review `per-leg pricing-mode family`
-5. keep `BUILD one-leg handling`
-6. keep `UNWIND group`
-7. reject `POST_ONLY` as baseline entry
-8. reject `IOC` as current live baseline entry
-9. do not assume current `POST_ONLY/IOC` baseline viability
+1. finish `websocket-first BBO / BookDepth family`
+2. run `3-cycle smoke`
+3. run `10-cycle stability`
+4. only after 1-3, return to `spread / timing gate family`
+5. only after 1-4, review `per-leg pricing-mode family`
+6. keep `BUILD one-leg handling`
+7. keep `UNWIND group`
+8. reject `POST_ONLY` as baseline entry
+9. reject `IOC` as current live baseline entry
 
 ## Execution Runbook
 
 - 첫 실제 실행 런북:
   - `.omx/plans/1dex_spread_timing_execution_plan.md`
+- WS-first 실전 런북:
+  - `.omx/plans/1dex_websocket_execution_plan.md`
