@@ -50,12 +50,17 @@ screening rule:
    - evidence:
      - `.omc/plans/emergency-unwind-fix.md`
      - `.omc/plans/tick-size-rounding-fix.md`
+     - current screening:
+       - startup truth sane
+       - BUILD order placement reached
+       - `POST_ONLY -> IOC fallback` 경로로 99.1% fill
+       - current mainnet 1-cycle completion reached
+       - post-check flat `ETH=0.0`, `SOL=0.0`
    - 읽기:
-     - design / repair evidence는 있다
-     - explicit successful cycle record는 약하다
+     - historical docs와 current screening이 둘 다 붙은 유일한 commit
+     - close-state truth 표시는 여전히 수상하지만, 8개 후보 중 actual cycle completion 을 만든 유일한 anchor 다
    - verdict:
-     - `repair milestone`
-     - `not first anchor`
+     - `best current historical anchor`
 
 3. `0c93e82`
    - 역할:
@@ -113,7 +118,7 @@ screening rule:
      - current screening 에서 build-first candidate 로는 더 그럴듯하다
      - 하지만 direct baseline 은 아니고 stale retry semantics 가 남아 있다
    - verdict:
-     - `least-bad historical build-first anchor`
+     - `second-best historical candidate`
 
 7. `43b36fb`
    - 역할:
@@ -130,29 +135,29 @@ screening rule:
      - WS startup / build retry handoff hardening
    - evidence:
      - unit / bootstrap tests 강화
-     - 2026-04-12 live에서는 `no-fill clean skip` 와 `one-leg -> unwind -> retry re-entry` 문제가 남았다
+     - pure commit screening 에서는 current market 에서 `ENTRY_TIMEOUT_BELOW_THRESHOLD` 로 BUILD 진입 전 stop
    - verdict:
-     - `keep as current experimental head`
-     - `not best-version anchor`
+     - `experimental head, not historical anchor`
 
 ### Current anchor verdict
 
 - strict winner:
-  - `none`
-- forced historical build-first anchor:
-  - `4ff3ae2`
+  - `c4f7c75`
+- historical first anchor:
+  - `c4f7c75`
 - why:
   - startup truth sane
   - BUILD order placement reached
-  - `9c3be2b`보다 later
-  - but still not direct baseline because `no-fill + flat -> retry re-entry` 가 남았다
+  - `POST_ONLY -> IOC fallback`로 current mainnet 1-cycle completion reached
+  - post-check flat `0/0`
+  - but still not direct baseline because close-state truth / unwind-state interpretation is suspicious
 - explicit rejects:
   - `3b483fe`
     - startup WS truth mismatch
   - `43b36fb`
     - current market 에서 BUILD 진입 전 gate stop
-  - `93bdfce`
-    - experimental head, still one-leg -> unwind -> post-unwind re-entry issue
+  - `7e11a6f`
+    - current env import surface mismatch
 
 ## Scope Count
 

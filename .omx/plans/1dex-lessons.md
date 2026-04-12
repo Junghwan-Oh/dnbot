@@ -103,14 +103,15 @@
    - 교훈:
      - 과거 성공 기록이 있어도 current mainnet startup truth screening 을 못 통과하면 first anchor로 쓰면 안 된다
 
-14. current historical screening 결과 strict winner는 없다.
-   - 다만 forced ranking 으로 하나 고르면 `4ff3ae2`가 least-bad historical build-first anchor 다
+14. current historical screening 결과 winner는 `c4f7c75`다.
    - 이유:
      - startup truth sane
      - BUILD order placement reached
-     - `9c3be2b`보다 later
+     - `POST_ONLY -> IOC fallback` 로 current mainnet 1-cycle completion reached
+     - post-check 기준 flat `0/0`
    - 단점:
-     - `no-fill + flat` 에서 retry 재진입이 남아 있어 direct baseline 은 아니다
+     - close-state truth / unwind-state interpretation 은 여전히 수상하다
+     - 따라서 direct production baseline 이 아니라 first anchor 다
 
 15. `43b36fb`는 recent websocket experiment 로는 중요하지만 current market 에서는 build-friendly commit이 아니다.
    - 이유:
