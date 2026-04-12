@@ -560,3 +560,8 @@ build-stage entry logic total: `7`
 7. reject `POST_ONLY` as baseline entry
 8. reject `IOC` as current live baseline entry
 9. do not assume current `POST_ONLY/IOC` baseline viability
+
+## Execution Runbook
+
+- 첫 실제 실행 런북:
+  - `.omx/plans/1dex_spread_timing_execution_plan.md`
