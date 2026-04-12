@@ -59,6 +59,32 @@
 
 ## BUILD Group Insights
 
+### 0. historical anchor를 다시 고른 이유
+
+`1DEX`에서는 한동안 recent websocket commits 를 first anchor 로 과하게 잡았다.
+
+현재 교정된 읽기는 아래다.
+
+- `3b483fe`
+  - 문서상 success record 는 좋았지만
+  - current mainnet startup truth screening 에서 `SOL=-12.9` bogus WS position 이 나와 탈락
+- `43b36fb`
+  - startup truth 는 sane 했지만
+  - current market 에서는 `ENTRY_TIMEOUT_BELOW_THRESHOLD` 로 BUILD-friendly commit 이 아니었다
+- `c4f7c75`
+  - startup truth sane
+  - BUILD order placement reached
+  - `POST_ONLY -> IOC fallback` 경로로 current mainnet 1-cycle completion reached
+  - post-check flat `0/0`
+
+즉 현재 `historical best reference`는 `c4f7c75`다.
+
+이 insight 의 핵심은 단순한 commit ranking 이 아니다.
+
+- success 문서가 있어도 current mainnet screening 을 못 통과하면 first anchor 로 쓰면 안 된다
+- recent websocket patch 라고 해서 build-friendly commit 이 되는 것도 아니다
+- 결국 anchor 는 `md / csv / log` 와 `current mainnet screening` 둘 다 통과해야 한다
+
 ### 1. 왜 지금 BUILD group을 먼저 자르나
 
 지금 시점의 핵심 사실은 이미 두 가지다.
@@ -323,6 +349,34 @@
   - ETH position `0`
   - SOL position `0`
   였다
+
+### 5.8. current infra stabilization에서 실제로 달라진 점
+
+current head 에서는 아래 두 가지를 새로 얻었다.
+
+1. `no-fill + flat`
+   - 이제 bot 전체 stop 이 아니라 `clean skip` 로 처리된다
+   - 다음 iteration 으로 넘어갈 수 있다
+
+2. `one-leg fill -> emergency unwind -> actual flat`
+   - 이제 BUILD retry 로 다시 되돌아가지 않는다
+   - cycle outcome 을 `unwind_recovered_flat` 으로 보고 다음 iteration 으로 넘어간다
+
+이 두 변화 덕분에 current mainnet `3-cycle`은 실제로 끝까지 갔다.
+
+다만 이걸 success 로 과대평가하면 안 된다.
+
+- 3-cycle 모두 healthy paired fill completion 은 아니었다
+- 실제 패턴은
+  - one-leg fill
+  - emergency unwind
+  - recovered flat
+  에 더 가까웠다
+
+즉 현재 상태는:
+
+- infra survival / flat recovery 는 좋아졌다
+- build quality / paired fill viability 는 아직 낮다
 - 그래서 이번 건은 "실제 잔여 포지션"이 아니라
   "웹소켓 포지션 값 해석/동기화 문제" 쪽에 더 가깝다
 
