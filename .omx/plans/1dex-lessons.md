@@ -40,7 +40,7 @@
 
    예시:
 
-   - `1DEX Nado` branch total commits: `63`
+   - `1DEX Nado` branch total commits: `65`
    - build-stage mapped components: `13 / 13`
    - build candidate groups mapped: `7 / 7`
    - entry mode verdicts: `2 / 2 complete`
@@ -82,6 +82,35 @@
 10. 문서는 로컬에서 먼저 batch diff 로 보여주고, 의미 있는 묶음이 쌓이면 remote 로 올린다.
    - 작은 steering correction 은 local diff 에서 먼저 받고
    - remote 는 기준점이 흔들리지 않을 정도로 묶였을 때만 사용한다
+
+11. first button은 "최근 websocket 커밋"이 아니라 "성공 기록이 붙은 best version"이어야 한다.
+   - commit message보다 `md / csv / log` evidence를 먼저 본다
+   - success record가 있으면 그 commit을 먼저 후보화한다
+   - 같은 수준일 때만 최신 쪽을 우선한다
+
+12. `43b36fb`, `93bdfce` 같은 최근 WS 개선 커밋은 useful experiment일 수는 있어도, 곧바로 best anchor가 되지는 않는다.
+   - 이번에는 그걸 first anchor로 잡아서 시간을 많이 썼다
+   - 교훈:
+     - `experimental head`
+     - `incident-response batch`
+     - `best known stable version`
+     를 반드시 분리해서 읽어야 한다
+
+13. 현재 provisional `1DEX best version`은 `3b483fe` family로 읽는 것이 맞다.
+   - supporting doc:
+     - `23231c6`의 `docs/tp-precision-fix-summary.md`
+   - 이유:
+     - explicit TP placement success
+     - explicit static TP trigger success
+     - SOL WS precision correction
+   - 즉:
+     - BUILD 자체가 되는 버전 후보
+     - 다만 remaining issue는 `unwind verification lag`로 남아 있었다
+
+14. `4ff3ae2`는 중요한 교훈이지만 best version anchor는 아니다.
+   - `SOL ~$400 accumulation` incident-response 문서가 붙은 커밋이다
+   - 이런 커밋은 "무엇이 깨졌는가"를 잘 알려주지만
+   - "무엇이 가장 잘 되었는가"를 대표하지는 않는다
 
 ## Methodology To Reuse For 2DEX Team
 
