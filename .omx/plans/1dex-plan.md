@@ -220,6 +220,29 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
      - hard profitability threshold 하나로 BUILD viability 를 대표시키면 안 된다
       - donor 코드상 `_check_spread_profitability()` 는 profitability filter 가 아니라 sanity check 로 적혀 있다
       - `_wait_for_optimal_entry()` 는 timeout 후에도 진입하므로, 현재는 "optimal entry"보다 "timeout-based entry release"에 가깝다
+   - 세부 실행계획:
+     1. `semantic split test`
+        - 목적:
+          - `_check_spread_profitability()` 를 profitability gate 로 읽을지 sanity gate 로 읽을지 먼저 고정
+        - 왜 지금 하나:
+          - 이 정의가 안 서면 threshold 숫자 조정이 전부 헛수고가 될 수 있다
+        - 확인할 것:
+          - 현재 코드/주석/실전 로그 중 무엇이 권위인지
+          - `min-spread-bps` 가 실제로 "수익성 보장"을 뜻하는지 아닌지
+     2. `timeout path test`
+        - 목적:
+          - `_wait_for_optimal_entry()` 의 timeout 후 진입을 "optimal"과 분리해서 읽기
+        - 왜 지금 하나:
+          - timeout entry를 좋은 진입으로 오해하면 BUILD 판정이 왜곡된다
+        - 확인할 것:
+          - timeout 진입은 hard release 인지
+          - advisory release 인지
+          - 별도 reason code로 분리해야 하는지
+     3. `gate policy decision`
+        - 목적:
+          - `hard block / soft advisory / WS-depth composite gate` 셋 중 하나로 현재 정책을 고정
+        - 왜 지금 하나:
+          - 이 결정이 있어야 다음 BUILD 실험이 같은 애매한 gate semantics를 반복하지 않는다
 
 2. `websocket-first BBO / BookDepth family`
    - 상태:
@@ -229,6 +252,38 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
    - 현재 읽기:
       - order mode 이전에 market-data authority 를 올리는 family 로 본다
       - donor 코드상 `No BookDepth data`일 때도 target quantity 로 진행하는 경로가 있어, WS 연결보다 BookDepth gate 강제 여부가 더 핵심이다
+   - 세부 실행계획:
+     1. `BBO authority test`
+        - 목적:
+          - BUILD 시점 가격 판단이 실제로 WS-primary 인지, 여전히 query-heavy 인지 구분
+        - 왜 지금 하나:
+          - BBO authority 가 약하면 뒤의 pricing-mode 비교가 전부 흔들린다
+        - 확인할 것:
+          - `fetch_bbo_prices()` 와 WS handler 중 어느 쪽이 실제 decision authority 인지
+          - fallback 이 주 경로를 먹어버리는지
+     2. `BookDepth availability test`
+        - 목적:
+          - `No BookDepth data`가 일시적 warning인지 구조적 blocker인지 판정
+        - 왜 지금 하나:
+          - 현재 실전 실패 로그에서 가장 직접적으로 surfaced 된 gap이기 때문이다
+        - 확인할 것:
+          - BookDepth handler 부재 빈도
+          - WS 연결 상태와 BookDepth usable 상태가 실제로 같은지
+     3. `sizing authority test`
+        - 목적:
+          - sizing path 가 실제로 depth 신호를 먹는지 확인
+        - 왜 지금 하나:
+          - 지금은 depth가 없어도 target quantity 로 진행하는 분기가 있어 sizing authority 가 약하다
+        - 확인할 것:
+          - depth 부재 시 BUILD stop
+          - 축소 진입
+          - 그냥 진행
+          셋 중 무엇을 baseline 정책으로 둘지
+     4. `blocker promotion decision`
+        - 목적:
+          - `No BookDepth data`를 hard blocker로 승격할지 최종 결정
+        - 왜 지금 하나:
+          - 이 결정이 없으면 WS-first family 비교 자체가 문서상 주장으로만 남는다
 
 3. `per-leg pricing-mode family`
    - 상태:
@@ -237,6 +292,32 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
       - `eth_mode / sol_mode` 를 다르게 주는 leg-level pricing family
    - 현재 읽기:
       - 바로 다음 후보라기보다는 WS/BBO/BookDepth 정리 뒤에 올릴 후보
+   - 세부 실행계획:
+     1. `surface inventory test`
+        - 목적:
+          - donor 쪽 `eth_mode / sol_mode / bbo_minus_1 / bbo_plus_1 / bbo / aggressive / market` 표면을 전수 분리
+        - 왜 지금 하나:
+          - 이 family 는 아직 spec-only 라서 먼저 실제 선택지 목록을 정확히 고정해야 한다
+        - 확인할 것:
+          - 어떤 mode 가 양 leg 공통인지
+          - 어떤 mode 가 leg별 차등 적용 가능한지
+     2. `asymmetric liquidity hypothesis test`
+        - 목적:
+          - one-leg risk 가 leg 비대칭 유동성 때문인지 확인
+        - 왜 지금 하나:
+          - 이 가설이 맞을 때만 per-leg pricing family 가 compare-next 후보로 승격될 가치가 있다
+        - 확인할 것:
+          - ETH/SOL 체결 성격 차이
+          - 공격성 차등이 paired fill 개선으로 이어질 가능성
+     3. `bounded fallback policy`
+        - 목적:
+          - `aggressive` / `market` 를 baseline 본체로 둘지 bounded fallback 으로만 둘지 결정
+        - 왜 지금 하나:
+          - pricing-mode 실험이 baseline economics 를 깨지 않도록 범위를 제한해야 한다
+        - 확인할 것:
+          - fallback-only 허용
+          - mainline 허용 금지
+          - 또는 조건부 compare-next 승격
 
 ### Current BUILD batch goal
 
@@ -248,6 +329,23 @@ phase 1 의 BUILD 평가는 `alternate` cycle controller 를 전제로 한다.
 
 즉 이번 batch 는 `entry mode 비교`가 아니라
 `BUILD gate / market-data authority / sizing authority`를 다시 자르는 작업이다.
+
+### Why the 3 families must not be treated as one bundle
+
+이 3개는 서로 연결돼 있지만, 같은 층이 아니다.
+
+1. `spread / timing gate family`
+   - 진입 허가 semantics 층
+2. `websocket-first BBO / BookDepth family`
+   - market-data / sizing authority 층
+3. `per-leg pricing-mode family`
+   - 가격 공격성 미세조정 층
+
+따라서:
+
+- 셋을 항상 함께 움직이는 one-package 실험으로 다루면 안 된다
+- 순서는 `gate -> authority -> pricing`
+- 이 순서가 깨지면 더 미세한 층으로 내려가서 원인 파악을 흐릴 위험이 크다
 
 ### phase 1 에서 바로 흡수할 donor
 

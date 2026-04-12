@@ -289,6 +289,25 @@ build-stage entry logic total: `7`
 
 ## Remaining build families to review
 
+### why these 3 families are related but not one bundle
+
+현재 남은 3개 family는 서로 연결돼 있지만, 서로 다른 층이다.
+
+1. `spread / timing gate family`
+   - BUILD release semantics 층
+2. `websocket-first BBO / BookDepth family`
+   - market-data / sizing authority 층
+3. `per-leg pricing-mode family`
+   - leg별 가격 공격성 조정 층
+
+즉:
+
+- 이 셋은 같이 언급될 수는 있어도
+- 같은 실험 단위로 한 번에 뭉개서 테스트하면 안 된다
+- `gate -> authority -> pricing` 순서로 쪼개야 한다
+- 이유는 원인 분리를 위해서다
+- gate semantics도 안 정해진 상태에서 pricing-mode를 건드리면, 실패 원인이 어느 층인지 다시 흐려진다
+
 ### 1. `spread / timing gate family`
 
 - 역할:
@@ -317,6 +336,22 @@ build-stage entry logic total: `7`
   - `spread` 를 profitability hard gate로 문서화하지 않기
   - timeout 진입은 `optimal_spread`와 분리해서 읽기
   - BUILD entry release 조건을 spread 단독에서 WS/BBO/BookDepth 결합 판단으로 옮길지 결정
+- 세부 테스트 슬라이스:
+  1. `semantic split`
+     - 목적:
+       - profitability gate 와 sanity gate 를 분리
+     - 왜 하는가:
+       - 지금 가장 큰 혼선이 수치가 아니라 용도 해석이기 때문이다
+  2. `timeout release`
+     - 목적:
+       - timeout 진입을 "좋은 진입 발견"과 분리
+     - 왜 하는가:
+       - timeout 경로를 그대로 두면 gate 평가가 계속 왜곡된다
+  3. `policy lock`
+     - 목적:
+       - hard block / soft advisory / composite gate 중 하나로 고정
+     - 왜 하는가:
+       - 다음 실험 배치가 같은 애매한 문구를 반복하지 않게 하기 위해서다
 
 ### 2. `websocket-first BBO / BookDepth family`
 
@@ -345,6 +380,27 @@ build-stage entry logic total: `7`
   - `No BookDepth data`를 단순 warning 이 아니라 BUILD blocker 후보로 승격할지 결정
   - `get_bbo_handler()` / `get_bookdepth_handler()` 가 없을 때 진입을 계속 허용할지 명시
   - BookDepth 없는 sizing path를 baseline 에서 허용할지 금지할지 판정
+- 세부 테스트 슬라이스:
+  1. `BBO authority`
+     - 목적:
+       - WS BBO가 실제 decision authority 인지 확인
+     - 왜 하는가:
+       - pricing 판단이 query-heavy면 뒤의 개선이 모두 불안정하기 때문이다
+  2. `BookDepth availability`
+     - 목적:
+       - BookDepth 부재가 예외인지 상시 문제인지 분리
+     - 왜 하는가:
+       - 지금 실전에서 직접 surfaced 된 blocker 후보이기 때문이다
+  3. `sizing coupling`
+     - 목적:
+       - depth가 sizing gate에 실제로 연결되는지 확인
+     - 왜 하는가:
+       - 지금은 depth 부재여도 target quantity로 계속 진행해 authority가 약하다
+  4. `blocker promotion`
+     - 목적:
+       - `No BookDepth data`를 hard blocker로 올릴지 최종 판정
+     - 왜 하는가:
+       - 이 결정이 있어야 BUILD semantics가 다시 고정된다
 
 #### donor documents
 
@@ -422,6 +478,22 @@ build-stage entry logic total: `7`
   - asymmetric liquidity 를 leg 별 mode 차등으로 줄일 수 있는가
   - `aggressive`/`market` 를 baseline 본체가 아니라 bounded fallback 으로만 둘 수 있는가
   - subaccount lane 으로 넘어가도 재사용 가능한 family 인가
+- 세부 테스트 슬라이스:
+  1. `mode inventory`
+     - 목적:
+       - donor 에 실제 존재하는 mode surface를 빠짐없이 분리
+     - 왜 하는가:
+       - 아직 spec-only라서 먼저 비교군 정의가 필요하다
+  2. `asymmetry hypothesis`
+     - 목적:
+       - one-leg risk 가 leg별 liquidity 비대칭에서 오는지 확인
+     - 왜 하는가:
+       - 이 가설이 맞을 때만 pricing family 가 다음 단계 의미가 생긴다
+  3. `bounded fallback`
+     - 목적:
+       - aggressive/market 계열을 baseline 본체가 아니라 fallback 범위로 제한할지 결정
+     - 왜 하는가:
+       - 더 공격적인 mode가 baseline economics를 망치지 않도록 경계가 필요하다
 
 ## Unwind Group Map
 
