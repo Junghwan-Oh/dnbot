@@ -712,6 +712,6 @@ build-stage entry logic total: `7`
 ## Execution Runbook
 
 - 첫 실제 실행 런북:
-  - `.omx/plans/1dex_spread_timing_execution_plan.md`
+  - `.omx/plans/1dex-2tickers/1dex_spread_timing_execution_plan.md`
 - WS-first 실전 런북:
-  - `.omx/plans/1dex_websocket_execution_plan.md`
+  - `.omx/plans/1dex-2tickers/1dex_websocket_execution_plan.md`

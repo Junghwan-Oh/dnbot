@@ -476,4 +476,4 @@ current head 에서는 아래 두 가지를 새로 얻었다.
 ## Runbook Link
 
 - 첫 실행형 런북:
-  - `.omx/plans/1dex_spread_timing_execution_plan.md`
+  - `.omx/plans/1dex-2tickers/1dex_spread_timing_execution_plan.md`

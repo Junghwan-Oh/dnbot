@@ -722,7 +722,7 @@ strongly recommended:
 ## Execution Test Plan
 
 - 첫 실전형 spread/timing gate 런북:
-  - `.omx/plans/1dex_spread_timing_execution_plan.md`
+  - `.omx/plans/1dex-2tickers/1dex_spread_timing_execution_plan.md`
 
 ## Lessons
 
