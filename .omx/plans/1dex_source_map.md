@@ -75,10 +75,11 @@ screening rule:
      - SOL TP order placed
      - static TP hit
      - SOL WS precision correction
-   - documented remaining issue:
-     - `WS lag at unwind verification`
+   - current screening result:
+     - same account / current mainnet read-only probe 에서
+     - startup source가 `websocket` 일 때 `SOL=-12.9` bogus position 을 읽었다
    - verdict:
-     - `provisional best 1DEX version anchor`
+     - `reject as first anchor`
 
 5. `9c3be2b`
    - supporting documentation:
@@ -86,12 +87,15 @@ screening rule:
    - evidence:
      - core logic tests `9 / 9` passing
      - TP mocks `3 / 3` still broken
+     - current screening:
+       - startup truth sane
+       - BUILD order placement reached
+       - but `no-fill + flat` 에서 retry 재진입
    - 읽기:
      - test evidence는 좋다
-     - live best-version evidence는 `3b483fe`보다 약하다
+     - current mainnet 기준 build-first anchor 로는 stale
    - verdict:
-     - `supporting guardrail commit`
-     - `not first anchor`
+     - `build-friendly but stale`
 
 6. `4ff3ae2`
    - supporting documentation:
@@ -99,23 +103,27 @@ screening rule:
    - evidence:
      - `SOL ~$400 accumulation` incident-response
      - `23 tests passing`
+     - current screening:
+       - startup truth sane
+       - BUILD order placement reached
+       - but `no-fill + flat` 에서 retry 재진입
    - 읽기:
      - 중요한 post-mortem / repair batch다
-     - 하지만 baseline anchor라기보다 incident-response history다
-     - 게다가 이 family는 `position_change authority` 가정을 강하게 두는데, 2026-04-12 mainnet read에서는 그 가정을 바로 truth로 쓰기 어렵다
+     - `9c3be2b`보다 later 이고
+     - current screening 에서 build-first candidate 로는 더 그럴듯하다
+     - 하지만 direct baseline 은 아니고 stale retry semantics 가 남아 있다
    - verdict:
-     - `extract lessons`
-     - `not first anchor`
+     - `least-bad historical build-first anchor`
 
 7. `43b36fb`
    - 역할:
      - WS fill / retry handling 재작업
    - 읽기:
      - useful experimental lane
-     - explicit md/csv success record가 없다
+     - startup truth 는 sane
+     - 하지만 current market 에서는 `ENTRY_TIMEOUT_BELOW_THRESHOLD` 로 BUILD 진입 전 stop
    - verdict:
-     - `keep as experiment`
-     - `not best-version anchor`
+     - `not build-friendly in current market`
 
 8. `93bdfce`
    - 역할:
@@ -129,16 +137,22 @@ screening rule:
 
 ### Current anchor verdict
 
-- provisional best `1DEX` version:
-  - `3b483fe`
-- why:
-  - explicit success record가 있는 가장 강한 commit family
-  - remaining problem도 `BUILD failure general`이 아니라 `unwind verification lag`로 더 좁게 적혀 있다
-- do not anchor on:
+- strict winner:
+  - `none`
+- forced historical build-first anchor:
   - `4ff3ae2`
+- why:
+  - startup truth sane
+  - BUILD order placement reached
+  - `9c3be2b`보다 later
+  - but still not direct baseline because `no-fill + flat -> retry re-entry` 가 남았다
+- explicit rejects:
+  - `3b483fe`
+    - startup WS truth mismatch
   - `43b36fb`
+    - current market 에서 BUILD 진입 전 gate stop
   - `93bdfce`
-  because those are better read as `incident-response / experimental lanes`, not `best known stable version`
+    - experimental head, still one-leg -> unwind -> post-unwind re-entry issue
 
 ## Scope Count
 

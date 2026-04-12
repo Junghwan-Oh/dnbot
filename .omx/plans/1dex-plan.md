@@ -46,22 +46,47 @@ canonical steering rule:
 2. explicit success record가 있는 commit을 먼저 후보화한다
 3. 같은 수준이면 그 다음에 최신 쪽을 우선한다
 
-현재 provisional `1DEX best version anchor`는 아래다.
+현재 historical screening 결론은 아래다.
 
-- primary candidate commit: `3b483fe`
-- supporting success documentation:
-  - `23231c6`의 `docs/tp-precision-fix-summary.md`
+- `3b483fe`
+  - 문서상 success record는 좋다
+  - 하지만 current mainnet screening 에서 startup truth 가 깨졌다
+  - same account / read-only probe 에서 `SOL=-12.9` bogus WS position 이 떴다
+  - 따라서 first anchor 에서 제외한다
+
+- `43b36fb`
+  - startup truth 는 sane 했다
+  - 하지만 current market 에서는 `ENTRY_TIMEOUT_BELOW_THRESHOLD` 에 막혀 BUILD-friendly commit 으로 보기 어렵다
+  - 따라서 first anchor 에서 제외한다
+
+- `9c3be2b`
+  - startup truth 는 sane 했다
+  - BUILD order placement 까지는 갔다
+  - 하지만 `no-fill + flat` 에서 retry 재진입이 남아 있었다
+
+- `4ff3ae2`
+  - startup truth 는 sane 했다
+  - BUILD order placement 까지는 갔다
+  - `9c3be2b`보다 늦고, accumulation incident 대응 history 도 품고 있다
+  - 하지만 역시 `no-fill + flat` 에서 retry 재진입이 남아 있었다
+
+따라서 결론은 이렇다.
+
+- strict meaning 의 `historical best commit`:
+  - `없음`
+- forced ranking 으로 하나 고르면:
+  - `4ff3ae2 = least-bad historical build-first anchor`
 - 이유:
-  - explicit TP order placement success 기록이 있다
-  - explicit static TP trigger success 기록이 있다
-  - SOL WebSocket precision correction이 문서로 남아 있다
-  - 남은 문제도 `BUILD failure`보다 `WS lag at unwind verification`로 더 좁게 적혀 있다
+  - startup truth sane
+  - BUILD order placement reached
+  - `9c3be2b`보다 later
+  - 다만 stale retry semantics 가 남아 있어 direct baseline 은 아니다
 
 따라서 phase 1 은 이제 아래처럼 읽는다.
 
-- `3b483fe` family를 first anchor로 본다
-- `9c3be2b`, `4ff3ae2`는 safety/incident-response history로 본다
-- `43b36fb`, `93bdfce`는 useful experimental lane이지만 `best version anchor`로는 보지 않는다
+- `4ff3ae2`를 forced historical anchor 로 보되
+- direct baseline 으로는 쓰지 않는다
+- `93bdfce` 이후 experimental lane 에서 필요한 fix 를 추출해 붙여야 한다
 
 ## Core 1DEX View
 
@@ -111,7 +136,9 @@ anchor status:
 
 - historical best-version anchor:
   - status: `complete`
-  - result: `3b483fe (+ 23231c6 documentation)`를 provisional first anchor로 채택
+  - result:
+    - strict winner: `none`
+    - forced historical anchor: `4ff3ae2`
 
 세부:
 

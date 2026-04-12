@@ -96,21 +96,27 @@
      - `best known stable version`
      를 반드시 분리해서 읽어야 한다
 
-13. 현재 provisional `1DEX best version`은 `3b483fe` family로 읽는 것이 맞다.
-   - supporting doc:
-     - `23231c6`의 `docs/tp-precision-fix-summary.md`
+13. `3b483fe`는 문서상 success record가 좋았지만 current mainnet first anchor로는 탈락했다.
    - 이유:
-     - explicit TP placement success
-     - explicit static TP trigger success
-     - SOL WS precision correction
-   - 즉:
-     - BUILD 자체가 되는 버전 후보
-     - 다만 remaining issue는 `unwind verification lag`로 남아 있었다
+     - same account / read-only probe 에서 startup source가 `websocket` 일 때
+     - `SOL=-12.9` bogus position 이 떴다
+   - 교훈:
+     - 과거 성공 기록이 있어도 current mainnet startup truth screening 을 못 통과하면 first anchor로 쓰면 안 된다
 
-14. `4ff3ae2`는 중요한 교훈이지만 best version anchor는 아니다.
-   - `SOL ~$400 accumulation` incident-response 문서가 붙은 커밋이다
-   - 이런 커밋은 "무엇이 깨졌는가"를 잘 알려주지만
-   - "무엇이 가장 잘 되었는가"를 대표하지는 않는다
+14. current historical screening 결과 strict winner는 없다.
+   - 다만 forced ranking 으로 하나 고르면 `4ff3ae2`가 least-bad historical build-first anchor 다
+   - 이유:
+     - startup truth sane
+     - BUILD order placement reached
+     - `9c3be2b`보다 later
+   - 단점:
+     - `no-fill + flat` 에서 retry 재진입이 남아 있어 direct baseline 은 아니다
+
+15. `43b36fb`는 recent websocket experiment 로는 중요하지만 current market 에서는 build-friendly commit이 아니다.
+   - 이유:
+     - `ENTRY_TIMEOUT_BELOW_THRESHOLD` 에 막혀 실제 BUILD 진입 전 stop
+   - 교훈:
+     - websocket 개선 커밋이 곧 build-first anchor를 뜻하지는 않는다
 
 ## Methodology To Reuse For 2DEX Team
 
