@@ -633,6 +633,11 @@ strongly recommended:
 - order / WS / REST 실전 해석 파일:
   - `.omx/plans/1dex_execution_insights.md`
 
+## Execution Test Plan
+
+- 첫 실전형 spread/timing gate 런북:
+  - `.omx/plans/1dex_spread_timing_execution_plan.md`
+
 ## Lessons
 
 - steering lesson 별도 파일:

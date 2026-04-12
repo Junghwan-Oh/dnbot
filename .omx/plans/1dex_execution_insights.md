@@ -310,3 +310,8 @@
 - `POST_ONLY`는 no-fill로 탈락
 - `IOC`는 one-leg로 탈락
 - 다음은 order mode가 아니라 BUILD semantics를 다시 자르는 단계다
+
+## Runbook Link
+
+- 첫 실행형 런북:
+  - `.omx/plans/1dex_spread_timing_execution_plan.md`
