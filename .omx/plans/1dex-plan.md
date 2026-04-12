@@ -56,7 +56,7 @@ canonical steering rule:
 
 - `43b36fb`
   - startup truth 는 sane 했다
-  - 하지만 current market 에서는 `ENTRY_TIMEOUT_BELOW_THRESHOLD` 에 막혀 BUILD-friendly commit 으로 보기 어렵다
+  - 하지만 pure commit screening 에서 current market 에서는 `ENTRY_TIMEOUT_BELOW_THRESHOLD` 에 막혀 BUILD-friendly commit 으로 보기 어렵다
   - 따라서 first anchor 에서 제외한다
 
 - `9c3be2b`
@@ -70,23 +70,36 @@ canonical steering rule:
   - `9c3be2b`보다 늦고, accumulation incident 대응 history 도 품고 있다
   - 하지만 역시 `no-fill + flat` 에서 retry 재진입이 남아 있었다
 
+- `0c93e82`
+  - startup truth 는 sane 했다
+  - BUILD order placement 까지는 갔다
+  - 하지만 양다리 no-fill 후 clean skip 없이 bot stop 으로 끝났다
+
+- `c4f7c75`
+  - startup truth 는 sane 했다
+  - BUILD order placement 까지는 갔다
+  - `POST_ONLY -> IOC fallback` 경로로 99.1% fill 을 만들었다
+  - current mainnet 기준 1-cycle completion 까지 확인됐다
+  - post-check 기준 실포지션도 `ETH=0.0`, `SOL=0.0` 이었다
+
 따라서 결론은 이렇다.
 
 - strict meaning 의 `historical best commit`:
-  - `없음`
-- forced ranking 으로 하나 고르면:
-  - `4ff3ae2 = least-bad historical build-first anchor`
+  - `c4f7c75`
+- first anchor:
+  - `c4f7c75`
 - 이유:
   - startup truth sane
   - BUILD order placement reached
-  - `9c3be2b`보다 later
-  - 다만 stale retry semantics 가 남아 있어 direct baseline 은 아니다
+  - current mainnet 기준 1-cycle completion reached
+  - post-check 기준 flat `0/0`
+  - 다만 `UNWIND POSITIONS BEFORE: ETH=0.0, SOL=0.0` 같이 close-state truth 해석이 아직 수상해서 direct production baseline 은 아니다
 
 따라서 phase 1 은 이제 아래처럼 읽는다.
 
-- `4ff3ae2`를 forced historical anchor 로 보되
+- `c4f7c75`를 historical first anchor 로 본다
 - direct baseline 으로는 쓰지 않는다
-- `93bdfce` 이후 experimental lane 에서 필요한 fix 를 추출해 붙여야 한다
+- 그 위에 `4ff3ae2`, `43b36fb`, `93bdfce` experimental lane에서 필요한 fix 를 추출해 붙여야 한다
 
 ## Core 1DEX View
 
@@ -137,8 +150,8 @@ anchor status:
 - historical best-version anchor:
   - status: `complete`
   - result:
-    - strict winner: `none`
-    - forced historical anchor: `4ff3ae2`
+    - strict winner: `c4f7c75`
+    - active historical first anchor: `c4f7c75`
 
 세부:
 
